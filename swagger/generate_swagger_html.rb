@@ -23,7 +23,7 @@ spec = YAML.safe_load_file(SRC, aliases: true)
 json = JSON.pretty_generate(spec).gsub("</", "<\\/")
 built = Time.now.strftime("%Y-%m-%d %H:%M")
 
-PATH_OPCOUNT = spec.fetch("paths", {}).values.sum { |item| item.keys.grep(/\A(get|post|put|delete|patch|head|options)\z/).size }
+PATH_COUNT = spec.fetch("paths", {}).size
 OPCOUNT = spec.fetch("paths", {}).values.sum { |item| item.keys.grep(/\A(get|post|put|delete|patch|head|options)\z/).size }
 
 html = <<~'HTML'
@@ -567,4 +567,4 @@ html = html.gsub("__SPEC_JSON__", json).gsub("__BUILT__", built)
 Dir.mkdir(File.dirname(OUT)) unless Dir.exist?(File.dirname(OUT))
 File.write(OUT, html)
 
-puts "wrote #{OUT} (#{File.size(OUT).to_i / 1024} KB, #{PATH_OPCOUNT} paths / #{OPCOUNT} operations)"
+puts "wrote #{OUT} (#{File.size(OUT).to_i / 1024} KB, #{PATH_COUNT} paths / #{OPCOUNT} operations)"

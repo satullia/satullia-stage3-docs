@@ -17,7 +17,7 @@
       "name": "Auth",
       "item": [
         {
-          "name": "POST /api/v1/auth/token (set {{auth_token}})",
+          "name": "POST /api/v1/auth/login (set {{auth_token}})",
           "event": [
             {
               "listen": "test",
@@ -35,21 +35,31 @@
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
-            "url": { "raw": "{{base_url}}/api/v1/auth/token", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "token"] }
+            "url": { "raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "login"] }
           }
         },
         {
-          "name": "GET /api/v1/auth/profile",
+          "name": "POST /api/v1/auth/verify-code",
           "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
-            "url": { "raw": "{{base_url}}/api/v1/auth/profile", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "profile"] }
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"code\": \"123456\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/auth/verify-code", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "verify-code"] }
           }
         },
         {
-          "name": "GET /api/v1/auth/refresh-token",
+          "name": "POST /api/v1/auth/resend-verify-code",
           "request": {
-            "method": "GET",
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/auth/resend-verify-code", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "resend-verify-code"] }
+          }
+        },
+        {
+          "name": "POST /api/v1/auth/refresh-token",
+          "request": {
+            "method": "POST",
             "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
             "url": { "raw": "{{base_url}}/api/v1/auth/refresh-token", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "refresh-token"] }
           }
@@ -62,28 +72,6 @@
             "body": { "mode": "raw", "raw": "{\n  \"email\": \"newuser@gmail.com\",\n  \"password\": \"StrongPass123!\",\n  \"username\": \"newuser\"\n}" },
             "url": { "raw": "{{base_url}}/api/v1/auth/signup", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "signup"] }
           }
-        },
-        {
-          "name": "GET /api/v1/auth/verify-email",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
-            "url": {
-              "raw": "{{base_url}}/api/v1/auth/verify-email?token=TOKEN",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "auth", "verify-email"],
-              "query": [{ "key": "token", "value": "TOKEN" }]
-            }
-          }
-        },
-        {
-          "name": "POST /api/v1/auth/resend-verification",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
-            "url": { "raw": "{{base_url}}/api/v1/auth/resend-verification", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "resend-verification"] }
-          }
         }
       ]
     },
@@ -91,15 +79,19 @@
       "name": "Profile",
       "item": [
         {
-          "name": "GET /api/v1/profile/:username",
+          "name": "GET /api/v1/profile?username=... (public lookup)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
-            "url": { "raw": "{{base_url}}/api/v1/profile/test", "host": ["{{base_url}}"], "path": ["api", "v1", "profile", ":username"], "variable": [{ "key": "username", "value": "test" }] }
+            "url": {
+              "raw": "{{base_url}}/api/v1/profile?username=test",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "profile"],
+              "query": [{ "key": "username", "value": "test" }]
+            }
           }
         },
         {
-          "name": "GET /api/v1/profile (self / update)",
+          "name": "GET /api/v1/profile (own, JWT)",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
@@ -107,15 +99,15 @@
           }
         },
         {
-          "name": "PUT /api/v1/profile (update)",
+          "name": "POST /api/v1/profile/update (JWT)",
           "request": {
-            "method": "PUT",
+            "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{auth_token}}" },
               { "key": "Content-Type", "value": "application/json" }
             ],
-            "body": { "mode": "raw", "raw": "{\n  \"bio\": \"Updated bio\",\n  \"avatar_url\": \"https://example.com/avatar.png\"\n}" },
-            "url": { "raw": "{{base_url}}/api/v1/profile", "host": ["{{base_url}}"], "path": ["api", "v1", "profile"] }
+            "body": { "mode": "raw", "raw": "{\n  \"bio\": \"Updated bio\",\n  \"image_url\": \"826c7d5b-e231-4be1-8bc9-5db6e3ecec46\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/profile/update", "host": ["{{base_url}}"], "path": ["api", "v1", "profile", "update"] }
           }
         }
       ]
@@ -124,15 +116,15 @@
       "name": "Access Control",
       "item": [
         {
-          "name": "GET /api/v1/access-control/user/privileges",
+          "name": "GET /api/v1/access-control/privileges",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
-            "url": { "raw": "{{base_url}}/api/v1/access-control/user/privileges", "host": ["{{base_url}}"], "path": ["api", "v1", "access-control", "user", "privileges"] }
+            "url": { "raw": "{{base_url}}/api/v1/access-control/privileges", "host": ["{{base_url}}"], "path": ["api", "v1", "access-control", "privileges"] }
           }
         },
         {
-          "name": "PUT /api/v1/access-control/user/privileges (admin)",
+          "name": "PUT /api/v1/access-control/privileges (admin)",
           "request": {
             "method": "PUT",
             "header": [
@@ -140,7 +132,7 @@
               { "key": "Content-Type", "value": "application/json" }
             ],
             "body": { "mode": "raw", "raw": "{\n  \"user_id\": 1,\n  \"privileges\": [\"READ\", \"WRITE\"]\n}" },
-            "url": { "raw": "{{base_url}}/api/v1/access-control/user/privileges", "host": ["{{base_url}}"], "path": ["api", "v1", "access-control", "user", "privileges"] }
+            "url": { "raw": "{{base_url}}/api/v1/access-control/privileges", "host": ["{{base_url}}"], "path": ["api", "v1", "access-control", "privileges"] }
           }
         }
       ]

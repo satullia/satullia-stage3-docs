@@ -1,0 +1,17 @@
+
+[1m==== GATEWAY — https://api-satullia.danials.space ====[0m
+  [0;36mHEAD /status (health)[0m
+  [0;32m✔ PASS[0m  gateway health (HEAD only)  (HTTP 200)
+  [0;36mGET /status (non-HEAD → 405)[0m
+  [0;32m✔ PASS[0m  status rejects GET  (HTTP 405)
+  [0;36mCORS preflight[0m
+  [0;32m✔ PASS[0m  CORS preflight accepted  (HTTP 204)
+  [0;36mrouting: /api/v1/deck/all via gateway[0m
+  [0;32m✔ PASS[0m  deck routed via gateway  (HTTP 200)
+  [0;36mrouting: /api/v1/app-version/latest via gateway[0m
+  [0;32m✔ PASS[0m  app-version routed via gateway  (HTTP 200)
+  [0;36mrouting: unknown /api/v1/xxx → 404[0m
+  [0;32m✔ PASS[0m  unknown service prefix → 404  (HTTP 404)
+
+[1m==== SUMMARY ====[0m
+  [0;36mTotal:[0m 6   [0;32mPassed:[0m 6   [0;31mFailed:[0m 0   [1;33mSkipped:[0m 0

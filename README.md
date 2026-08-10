@@ -7,12 +7,12 @@ folders, tabs, deck, post, app-version, file, gateway). No application code was 
 
 | Path | Description |
 |---|---|
-| `swagger/satullia-api.yaml` | **OpenAPI 3.0.3 spec** — the source of truth for the front-end team. 63 paths, 63 operations. Import into Swagger UI / Postman / Insomnia. |
+| `swagger/satullia-api.yaml` | **OpenAPI 3.0.3 spec** — the source of truth for the front-end team. 49 paths, 63 operations, 33 schemas. Import into Swagger UI / Postman / Insomnia. |
 | `swagger/satullia-api.html` | **Interactive Swagger-style playground** (self-contained, no server needed). Every operation has a "Try it out" test section: editable path/query params, prefilled request-body editor, live Execute against the selected server, colored status + JSON response, and a copy-ready `curl` command. Regenerate with `ruby swagger/generate_swagger_html.rb`. |
 | `API-REFERENCE.md` | Human-readable endpoint reference: methods, query/path/body params, auth, examples, known gaps. |
 | `architecture.md` | Service map with ports, gateway routing rules, request flow, local start commands, production hosts. |
 | `scripts/` | Ready-to-run Bash smoke tests for every endpoint (`./run_all.sh` or per-service). See `scripts/README.md`. |
-| `postman/satullia.postman_collection.json` | Postman collection mirroring the Swagger spec (folder-organized requests). |
+| `postman/satullia.postman_collection.json` | Postman collection mirroring the Swagger spec (folder-organized requests). Verify it against the spec anytime with `ruby postman/check_paths.rb`. |
 
 ## Quick start
 
