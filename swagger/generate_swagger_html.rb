@@ -23,6 +23,21 @@ spec = YAML.safe_load_file(SRC, aliases: true)
 json = JSON.pretty_generate(spec).gsub("</", "<\\/")
 built = Time.now.strftime("%Y-%m-%d %H:%M")
 
+# test credentials default to what's in scripts/.env (falls back to the classic
+# demo account if .env is missing)
+env = {}
+env_path = File.expand_path("../scripts/.env", __dir__)
+if File.exist?(env_path)
+  File.foreach(env_path) do |line|
+    line = line.strip
+    next if line.empty? || line.start_with?("#")
+    k, v = line.split("=", 2)
+    env[k] = v if k && v
+  end
+end
+TEST_EMAIL = env["TEST_EMAIL"] || "test@gmail.com"
+TEST_PASSWORD = env["TEST_PASSWORD"] || "passWORD@@22"
+
 PATH_COUNT = spec.fetch("paths", {}).size
 OPCOUNT = spec.fetch("paths", {}).values.sum { |item| item.keys.grep(/\A(get|post|put|delete|patch|head|options)\z/).size }
 
@@ -165,8 +180,8 @@ html = <<~'HTML'
   </div>
   <div>
     <label>Quick login</label>
-    <input id="loginEmail" type="email" placeholder="email" value="test@gmail.com" style="min-width:170px">
-    <input id="loginPass" type="password" placeholder="password" value="passWORD@@22" style="min-width:120px">
+    <input id="loginEmail" type="email" placeholder="email" value="__TEST_EMAIL__" style="min-width:170px">
+    <input id="loginPass" type="password" placeholder="password" value="__TEST_PASSWORD__" style="min-width:120px">
     <button class="btn primary" id="loginBtn">Get token</button>
   </div>
   <div class="spacer"></div>
@@ -563,6 +578,7 @@ renderOps();
 HTML
 
 html = html.gsub("__SPEC_JSON__", json).gsub("__BUILT__", built)
+html = html.gsub("__TEST_EMAIL__", TEST_EMAIL.gsub('"', "&quot;")).gsub("__TEST_PASSWORD__", TEST_PASSWORD.gsub('"', "&quot;"))
 
 Dir.mkdir(File.dirname(OUT)) unless Dir.exist?(File.dirname(OUT))
 File.write(OUT, html)
