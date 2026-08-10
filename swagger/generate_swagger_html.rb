@@ -408,7 +408,7 @@ function setupTopBar(){
   $("#credsHint").textContent = "from scripts/.env: " + CREDS.email + " / " + CREDS.password;
   $("#loginBtn").addEventListener("click", async () => {
     const base = SPEC.servers[+sel.value].url;
-    const email = $("#loginEmail").value.trim(), pass = $("#loginPass").value;
+    const email = $("#loginEmail").value.trim(), password = $("#loginPass").value;
     $("#loginBtn").disabled = true; $("#loginBtn").textContent = "…";
     try {
       const r = await fetch(base + "/api/v1/auth/login", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({email, password}) });
