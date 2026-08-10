@@ -17,7 +17,8 @@ Defaults are tuned to the deployed environment:
 BASE_URL=https://api-satullia.danials.space
 FILE_URL=https://file-satullia.danials.space
 FOLDER_URL=http://localhost:8080    # folders/tabs are NOT routed via the gateway yet
-POST_URL=http://localhost:3003      # post routes have no /api/v1 prefix
+POST_URL=https://api-satullia.danials.space   # gateway: post checks report 404 until routing is fixed;
+                                              # or use http://localhost:3003 for the service directly
 TEST_EMAIL=test@gmail.com
 TEST_PASSWORD=passWORD@@22
 ```
@@ -69,3 +70,8 @@ Every run writes a timestamped report to `reports/report_<timestamp>.log`.
 - Post service: routes registered without `/api/v1` (see `API-REFERENCE.md` §9); use `POST_URL`.
   When using the deployed gateway path, `ApiResponse` statuses `404` are expected until the
   prefix mismatch is fixed.
+- File service (deployed `file-satullia.danials.space`): only GET `/api/v1/file/download/{filename}`
+  is proxied. A missing file returns **200 with an HTML error page** (never 404), and
+  `POST /api/v1/file/upload` returns **405 from openresty** (not proxied). Run the upload tests
+  against the service directly (`http://localhost:3005`) to see the real 401 behavior.
+- Unicode query params must be **percent-encoded** in URLs (raw UTF-8 is rejected upstream).

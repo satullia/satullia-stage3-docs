@@ -1,0 +1,16 @@
+
+[1m==== POST SERVICE — http://localhost:3003 ====[0m
+  [0;36mGET /posts (paginated)[0m
+  [0;31m✘ FAIL[0m  posts list  (got HTTP 000, want one of 200,404,502)
+  [0;36mGET /posts/featured[0m
+  [0;31m✘ FAIL[0m  featured posts  (got HTTP 000, want one of 200,404,502)
+  [0;36mGET /posts/search?query=... (missing query is a 400)[0m
+  [0;31m✘ FAIL[0m  search requires query  (got HTTP 000, want one of 400,404,502)
+  [0;36mGET /posts/search?query=go[0m
+  [0;31m✘ FAIL[0m  search posts  (got HTTP 000, want one of 200,400,404,502)
+  [0;36mGET /posts/{id}[0m
+  [0;31m✘ FAIL[0m  post by id  (got HTTP 000, want one of 200,404,502)
+  [1;33m⏭ SKIP[0m  auth-required post endpoints (login failed)
+
+[1m==== SUMMARY ====[0m
+  [0;36mTotal:[0m 6   [0;32mPassed:[0m 0   [0;31mFailed:[0m 5   [1;33mSkipped:[0m 1

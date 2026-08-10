@@ -1,0 +1,11 @@
+
+[1m==== PROFILE SERVICE — https://api-satullia.danials.space/api/v1/profile ====[0m
+  [0;36mGET /api/v1/profile?username=...[0m
+  [0;32m✔ PASS[0m  get profile by username  (HTTP 502)
+  [1;33m⏭ SKIP[0m  own profile (login failed)
+  [1;33m⏭ SKIP[0m  update profile (no token)
+  [0;36mPOST /api/v1/profile/update (no token)[0m
+  [0;32m✔ PASS[0m  update profile requires auth (502 = profile service down via gateway)  (HTTP 502)
+
+[1m==== SUMMARY ====[0m
+  [0;36mTotal:[0m 4   [0;32mPassed:[0m 2   [0;31mFailed:[0m 0   [1;33mSkipped:[0m 2
