@@ -620,7 +620,8 @@ async function execOp(card, path, method, op, res, bodyEx, execBtn, tryBtn, hint
     const bodyEl = res.querySelector(".res-body");
     bodyEl.innerHTML = "";
     let errCode = "", errMsg = "";
-    if (ct.includes("json")){
+    const looksJson = ct.includes("json") || /^\s*[\[{]/.test(text);
+    if (looksJson){
       try {
         const j = JSON.parse(text);
         bodyEl.appendChild(renderJson(j));

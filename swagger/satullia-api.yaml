@@ -1069,6 +1069,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Deck'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/deck/featured:
     get:
@@ -1274,6 +1276,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Flashcard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/v1/deck/progress/record:
     post:
@@ -1869,6 +1873,10 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: Missing or invalid parameters
     Unauthorized:
       description: Missing, invalid or expired access token / not verified
       content:
