@@ -38,6 +38,74 @@ end
 TEST_EMAIL = env["TEST_EMAIL"] || "test@gmail.com"
 TEST_PASSWORD = env["TEST_PASSWORD"] || "passWORD@@22"
 
+# ----------------------------------------------------------------------------
+# Documented-responses panel data: for each operation, the status codes, their
+# descriptions and a syntax-highlighted example body (spec example, or a sample
+# generated from the schema).
+# ----------------------------------------------------------------------------
+def esc_html(s)
+  s.to_s.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;")
+end
+
+def hl_json(obj)
+  json = JSON.pretty_generate(obj)
+  out = esc_html(json)
+  out = out.gsub(/(&quot;(?:[^&"]|&amp;|&lt;|&gt;)*?&quot;)(\s*:)/) { '<span class="hl-k">' + $1 + "</span>" + $2 }
+  out = out.gsub(/(&quot;(?:[^&"]|&amp;|&lt;|&gt;)*?&quot;)(?!\s*:)/) { '<span class="hl-s">' + $1 + "</span>" }
+  out = out.gsub(/(-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)/) { '<span class="hl-n">' + $1 + "</span>" }
+  out = out.gsub(/\b(true|false|null)\b/) { '<span class="hl-b">' + $1 + "</span>" }
+  out
+end
+
+def sample_schema(sch, schemas, depth = 0)
+  return nil if depth > 6
+  sch ||= {}
+  if sch["$ref"]
+    node = schemas[sch["$ref"].sub("#/components/schemas/", "")] or return nil
+    return sample_schema(node, schemas, depth + 1)
+  end
+  if sch["allOf"] && !sch["allOf"].empty?
+    out = {}
+    sch["allOf"].each { |s| out.merge!(sample_schema(s, schemas, depth + 1) || {}) }
+    return out
+  end
+  case sch["type"]
+  when "object", nil
+    out = {}
+    (sch["properties"] || {}).each { |k, ps| out[k] = sample_schema(ps, schemas, depth + 1) }
+    out
+  when "array" then [sample_schema(sch["items"] || {}, schemas, depth + 1)]
+  when "integer", "number" then 0
+  when "boolean" then false
+  else
+    if sch["enum"] && !sch["enum"].empty? then sch["enum"][0]
+    elsif sch["format"] == "uuid" then "00000000-0000-0000-0000-000000000000"
+    else ""
+    end
+  end
+end
+
+schemas = spec.fetch("components", {}).fetch("schemas", {})
+METHODS_RX = /\A(get|post|put|delete|patch|head|options)\z/
+resp_map = {}
+spec.fetch("paths", {}).each do |path, item|
+  item.each do |method, op|
+    next unless METHODS_RX.match?(method)
+    rows = []
+    (op["responses"] || {}).each do |code, resp|
+      media = resp.dig("content")&.values&.first
+      ex = nil
+      if media
+        ex = media["example"]
+        ex = sample_schema(media["schema"], schemas) if ex.nil? && media["schema"]
+      end
+      rows << { "code" => code, "desc" => resp["description"].to_s, "ex" => ex.nil? ? "" : hl_json(ex) }
+    end
+    resp_map["#{path}|#{method}"] = rows
+  end
+end
+RESP_MAP_JSON = resp_map.to_json.gsub("</", "<\\/")
+
 PATH_COUNT = spec.fetch("paths", {}).size
 OPCOUNT = spec.fetch("paths", {}).values.sum { |item| item.keys.grep(/\A(get|post|put|delete|patch|head|options)\z/).size }
 
@@ -161,6 +229,29 @@ html = <<~'HTML'
     padding:8px 12px;font-size:11.5px;overflow:auto;font-family:var(--mono);color:#33414f}
   .curl-wrap button{background:#fff;border:1px solid #b9c2cc;border-radius:6px;padding:5px 12px;font-size:12px;
     cursor:pointer}
+  /* ---------- documented responses ---------- */
+  .resp-sec{margin-top:16px;border-top:1px dashed var(--border);padding-top:4px}
+  .resp-list{display:flex;flex-wrap:wrap;gap:8px}
+  .resp-row{border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:12.5px;
+    background:#fff;cursor:default;min-width:130px;max-width:100%}
+  .resp-row.has-ex{cursor:pointer}
+  .resp-row.has-ex:hover{border-color:#b9c2cc}
+  .resp-row .resp-code{font-family:var(--mono);font-weight:800;margin-right:8px;padding:2px 8px;
+    border-radius:5px;background:#eef1f5;color:#33414f}
+  .resp-row .resp-desc{color:#5b6b7c;font-size:11.5px}
+  .resp-row.active{border-color:#49cc90;background:#f0faf5}
+  .resp-row.active .resp-code{background:#49cc90;color:#062b1a}
+  .resp-row pre.resp-ex{margin:8px 0 0;background:#152238;color:#e8ecf3;border-radius:6px;
+    padding:8px 10px;max-height:220px;overflow:auto;font-size:11.5px;line-height:1.5;cursor:text;white-space:pre-wrap}
+  .resp-ex .hl-k{color:#71a9f0}.resp-ex .hl-s{color:#8fd492}
+  .resp-ex .hl-n{color:#f6b73c}.resp-ex .hl-b{color:#e58ac2}
+  /* ---------- error code strip ---------- */
+  .r-err{margin:12px 14px 0;padding:8px 14px;background:#fdf0ef;border:1px solid #f5c6c2;
+    border-left:4px solid #f93e3e;font-size:13px;font-family:var(--mono);display:flex;gap:12px;align-items:baseline;
+    word-break:break-word}
+  .r-err[hidden]{display:none}
+  .r-err .err-code{font-weight:800;color:#c0392b;white-space:nowrap}
+  .r-err .err-msg{color:#7b2d26}
   .error{color:#c0392b;font-size:13px;padding:6px 0}
   footer{color:#8a94a1;font-size:12px;text-align:center;padding:30px 0 10px;font-family:var(--mono)}
   @media(max-width:900px){aside{display:none}.wrap{margin-top:60px}.hero h1{font-size:18px}}
@@ -216,6 +307,7 @@ html = <<~'HTML'
 "use strict";
 /* ============================= spec ============================= */
 const SPEC = __SPEC_JSON__;
+const RESP = __RESP_MAP__;
 
 /* ============================= helpers ============================= */
 const $ = s => document.querySelector(s);
@@ -410,6 +502,30 @@ function renderOp({path, method, op, id}){
     body.appendChild(l); body.appendChild(ta); body.appendChild(edHint);
   }
 
+  /* documented responses */
+  const respList = RESP[path + "|" + method];
+  if (respList && respList.length){
+    const rs = document.createElement("div"); rs.className = "resp-sec";
+    const l = document.createElement("div"); l.className = "lbl"; l.textContent = "Documented responses (click a body with an example to expand)";
+    rs.appendChild(l);
+    const list = document.createElement("div"); list.className = "resp-list";
+    respList.forEach(row => {
+      const el = document.createElement("div"); el.className = "resp-row"; el.dataset.code = row.code;
+      el.innerHTML = '<span class="resp-code">' + esc(row.code) + '</span><span class="resp-desc">' + esc(row.desc) + '</span>';
+      if (row.ex){
+        el.classList.add("has-ex");
+        el.insertAdjacentHTML("beforeend", '<pre class="resp-ex" hidden><code>' + row.ex + '</code></pre>');
+        el.addEventListener("click", () => {
+          const pre = el.querySelector(".resp-ex");
+          pre.hidden = !pre.hidden;
+        });
+      }
+      list.appendChild(el);
+    });
+    rs.appendChild(list);
+    body.appendChild(rs);
+  }
+
   /* actions */
   const actions = document.createElement("div"); actions.className = "op-actions";
   const tryBtn = document.createElement("button"); tryBtn.className = "btn"; tryBtn.textContent = "Try it out";
@@ -422,7 +538,7 @@ function renderOp({path, method, op, id}){
 
   /* result panel */
   const res = document.createElement("div"); res.className = "result";
-  res.innerHTML = '<div class="r-head"></div><pre class="res-body"></pre>';
+  res.innerHTML = '<div class="r-head"></div><div class="r-err" hidden></div><pre class="res-body"></pre>';
   const curlWrap = document.createElement("div"); curlWrap.className = "curl-wrap"; curlWrap.style.display = "none";
   curlWrap.innerHTML = '<pre class="curl"></pre><button class="copy-curl">Copy curl</button>';
   res.appendChild(curlWrap);
@@ -489,6 +605,8 @@ async function execOp(card, path, method, op, res, bodyEx, execBtn, tryBtn, hint
   const rHead = res.querySelector(".r-head");
   rHead.innerHTML = '<span class="r-meta">' + esco(method.toUpperCase()) + ' ' + esc(path) + '</span><span class="r-url">' + esc(url) + '</span>';
   rHead.querySelector(".r-url").style.marginLeft = "auto";
+  const errEl = res.querySelector(".r-err"); errEl.hidden = true; errEl.innerHTML = "";
+  card.querySelectorAll(".resp-row.active").forEach(r => r.classList.remove("active"));
   tryBtn.textContent = "Cancel"; tryBtn.disabled = true; execBtn.disabled = true; execBtn.textContent = "Executing…";
   const t0 = performance.now();
   try {
@@ -501,16 +619,34 @@ async function execOp(card, path, method, op, res, bodyEx, execBtn, tryBtn, hint
     const respDesc = op.responses && op.responses[String(status)] && op.responses[String(status)].description;
     const bodyEl = res.querySelector(".res-body");
     bodyEl.innerHTML = "";
+    let errCode = "", errMsg = "";
     if (ct.includes("json")){
       try {
         const j = JSON.parse(text);
         bodyEl.appendChild(renderJson(j));
+        const err = j && j.error;
+        if (err){
+          if (typeof err === "string"){ errCode = "ERROR"; errMsg = err; }
+          else if (typeof err === "object"){
+            errCode = err.code || "";
+            errMsg = err.message || "";
+            if (!errCode) errCode = "ERROR";
+          }
+        }
       } catch (e){ bodyEl.textContent = text || "(empty body)"; }
     } else if (ct.includes("text") || ct.includes("html")){
       bodyEl.textContent = text.length > 20000 ? text.slice(0, 20000) + "\n… (truncated, " + text.length + " bytes)" : text;
     } else {
       bodyEl.innerHTML = '<span class="err-note">Binary response (' + (ct || "unknown type") + ") — " + text.length + " bytes. Not rendered as JSON.</span>";
     }
+    if (errCode && !ok){
+      errEl.hidden = false;
+      errEl.innerHTML = '<span class="err-code">' + esc(errCode) + '</span>' +
+        (errMsg ? '<span class="err-msg">' + esc(errMsg) + '</span>' : "");
+    }
+    card.querySelectorAll('.resp-row[data-code]').forEach(r => {
+      if (r.dataset.code === String(status)) r.classList.add("active");
+    });
     head.innerHTML =
       '<span class="r-status ' + (ok ? "good" : warn ? "warn" : "bad") + '">' + status + ' ' + esc(r.statusText) + '</span>' +
       '<span class="r-meta">' + fmtTime(ms) + '</span>' +
@@ -577,7 +713,7 @@ renderOps();
 </html>
 HTML
 
-html = html.gsub("__SPEC_JSON__", json).gsub("__BUILT__", built)
+html = html.gsub("__SPEC_JSON__", json).gsub("__RESP_MAP__", RESP_MAP_JSON).gsub("__BUILT__", built)
 html = html.gsub("__TEST_EMAIL__", TEST_EMAIL.gsub('"', "&quot;")).gsub("__TEST_PASSWORD__", TEST_PASSWORD.gsub('"', "&quot;"))
 
 Dir.mkdir(File.dirname(OUT)) unless Dir.exist?(File.dirname(OUT))
