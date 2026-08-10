@@ -1,0 +1,4597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satullia API — Swagger UI</title>
+<style>
+  :root{
+    --bg:#f3f4f7; --card:#ffffff; --border:#d9dee6; --text:#1c2733; --muted:#5b6b7c;
+    --top:#1b1b1f; --top-text:#f5f6fa; --accent:#66b8ff;
+    --get:#61affe; --post:#49cc90; --put:#fca130; --delete:#f93e3e; --head:#9012fe; --patch:#50e3c2;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);font-size:15px}
+  a{color:#1f6feb;text-decoration:none}
+  /* ---------- top bar ---------- */
+  header{position:fixed;top:0;left:0;right:0;z-index:50;background:var(--top);color:var(--top-text);
+    padding:10px 18px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;
+    border-bottom:1px solid #000}
+  header .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.2px}
+  header .brand .logo{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,#66b8ff,#49cc90);
+    display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:#05203a}
+  header label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#9aa4b2}
+  header select,input{background:#26262c;color:var(--top-text);border:1px solid #3d3d45;border-radius:6px;
+    padding:6px 8px;font-size:13px;font-family:var(--mono);min-width:120px}
+  header .btn{background:#2f2f36;border:1px solid #4a4a54;color:var(--top-text);border-radius:6px;
+    padding:6px 12px;font-size:12.5px;cursor:pointer}
+  header .btn:hover{background:#3b3b44}
+  header .btn.primary{background:#49cc90;border-color:#49cc90;color:#062b1a;font-weight:700}
+  .spacer{flex:1}
+  #toast{position:fixed;top:60px;right:16px;z-index:99;background:#152238;color:#e8f1ff;padding:10px 16px;
+    border-radius:8px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.25);opacity:0;transition:opacity .25s;
+    pointer-events:none;max-width:420px}
+  #toast.show{opacity:1}
+  /* ---------- layout ---------- */
+  .wrap{display:flex;margin-top:60px;min-height:calc(100vh - 60px)}
+  aside{width:270px;flex:0 0 270px;background:#ffffff;border-right:1px solid var(--border);
+    padding:14px 10px 30px;position:sticky;top:60px;height:calc(100vh - 60px);overflow:auto}
+  aside .tag{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);
+    padding:12px 10px 4px;font-weight:700}
+  aside a{display:flex;justify-content:space-between;gap:8px;padding:5px 10px;border-radius:6px;
+    color:var(--text);font-family:var(--mono);font-size:12px;align-items:center}
+  aside a:hover{background:#eef1f6}
+  aside a .m{font-size:10.5px;font-weight:800;padding:1px 6px;border-radius:4px;color:#fff}
+  aside a.is-active{background:#e3ecf9}
+  main{flex:1;padding:22px 28px 80px;max-width:1180px;min-width:0}
+  /* ---------- hero / notes ---------- */
+  .hero{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:22px}
+  .hero h1{margin:0 0 6px;font-size:22px}
+  .hero p{margin:4px 0;color:var(--muted);line-height:1.5}
+  .notes{background:#fff8e8;border:1px solid #f2dfb3;border-radius:10px;padding:14px 18px;margin-bottom:26px}
+  .notes h4{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:#8a6d1a}
+  .notes li{margin:3px 0;font-size:13.5px;color:#5f5400}
+  .notes code{font-family:var(--mono);background:#fff;border:1px solid #e8d9a8;border-radius:4px;
+    padding:0 4px;font-size:12px}
+  /* ---------- tag sections ---------- */
+  .tagsec{margin-bottom:14px}
+  .taghead{display:flex;align-items:baseline;gap:10px;margin:26px 0 12px}
+  .taghead h2{margin:0;font-size:19px;border-bottom:2px solid #cfd6df;padding-bottom:6px}
+  .taghead .cnt{font-size:12px;color:var(--muted);font-family:var(--mono)}
+  /* ---------- operation cards ---------- */
+  .op{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;
+    box-shadow:0 1px 2px rgba(20,30,50,.04);transition:box-shadow .15s}
+  .op.open{box-shadow:0 6px 22px rgba(20,30,50,.10)}
+  .op-head{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;flex-wrap:wrap}
+  .op-head:hover{background:#fafbfd}
+  .op-head .badge{font-family:var(--mono);font-weight:800;font-size:12px;color:#fff;border-radius:5px;
+    padding:4px 9px;min-width:64px;text-align:center}
+  .op-head .path{font-family:var(--mono);font-size:14px;font-weight:600;word-break:break-all}
+  .op-head .sum{color:var(--muted);font-size:13px;margin-left:auto;padding-right:6px}
+  .op-head .chev{color:#9aa4b2;transition:transform .15s}
+  .op.open .op-head .chev{transform:rotate(90deg)}
+  .op-body{display:none;border-top:1px solid var(--border);padding:16px 18px;background:#fbfcfe}
+  .op.open .op-body{display:block}
+  .op-desc{white-space:pre-wrap;color:#36434f;font-size:13.5px;line-height:1.55;margin:0 0 12px}
+  .op-desc code{font-family:var(--mono);background:#eef1f5;border-radius:4px;padding:0 4px;font-size:12px}
+  table.pars{width:100%;border-collapse:collapse;margin:6px 0 14px;font-size:13px}
+  table.pars th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;
+    border-bottom:1px solid var(--border);padding:6px 8px}
+  table.pars td{border-bottom:1px solid #eef1f5;padding:7px 8px;vertical-align:middle}
+  table.pars td input{width:100%;min-width:140px;font-family:var(--mono);font-size:12.5px;padding:5px 8px;
+    border:1px solid #c9d1da;border-radius:6px;background:#fff}
+  table.pars td input:focus{outline:2px solid #a0c6f5;border-color:#66b8ff}
+  .req-dot{color:#f93e3e;font-weight:800}
+  .par-in,.par-type{font-family:var(--mono);font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  .lbl{font-size:12px;font-weight:700;color:#36434f;text-transform:uppercase;letter-spacing:.4px;margin:10px 0 6px}
+  textarea{width:100%;min-height:110px;font-family:var(--mono);font-size:12.5px;line-height:1.5;padding:9px 11px;
+    border:1px solid #c9d1da;border-radius:8px;background:#fff;resize:vertical;color:#152238}
+  textarea:focus{outline:2px solid #a0c6f5;border-color:#66b8ff}
+  input[type=file]{font-size:12.5px;font-family:var(--mono)}
+  .op-actions{display:flex;gap:10px;margin-top:14px;align-items:center}
+  .op-actions .btn{background:#ffffff;border:1px solid #b9c2cc;color:#1c2733;border-radius:6px;padding:7px 16px;
+    font-size:13px;cursor:pointer;font-weight:600}
+  .op-actions .btn:hover{border-color:#8b99a8}
+  .op-actions .btn.exec{background:#49cc90;border-color:#49cc90;color:#062b1a;font-weight:700}
+  .op-actions .btn.exec:disabled{opacity:.55;cursor:wait}
+  .op-actions .hint{font-size:12px;color:var(--muted);margin-left:auto;font-family:var(--mono)}
+  /* ---------- test results ---------- */
+  .result{display:none;margin-top:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .result.show{display:block}
+  .r-head{display:flex;align-items:center;gap:12px;padding:9px 14px;background:#f2f4f8;border-bottom:1px solid var(--border);
+    flex-wrap:wrap;font-size:12.5px}
+  .r-status{font-family:var(--mono);font-weight:800;padding:3px 10px;border-radius:5px;color:#fff;font-size:12px}
+  .r-status.good{background:#49cc90}.r-status.bad{background:#f93e3e}.r-status.warn{background:#fca130}
+  .r-meta{color:var(--muted);font-family:var(--mono);font-size:11.5px}
+  .r-desc{color:#36434f}
+  .r-url{font-family:var(--mono);font-size:11.5px;color:#5b6b7c;background:#fff;border:1px solid var(--border);
+    border-radius:6px;padding:2px 8px;margin-left:auto}
+  pre.res-body{margin:0;padding:14px 16px;background:#152238;color:#e8ecf3;font-family:var(--mono);
+    font-size:12.5px;line-height:1.55;overflow:auto;max-height:460px;white-space:pre-wrap;word-break:break-word}
+  pre.res-body .tok-s{color:#8fd492}.tok-n{color:#f6b73c}.tok-k{color:#71a9f0}.tok-b{color:#e58ac2}
+  .err-note{color:#ff9d9d}
+  .curl-wrap{display:flex;gap:8px;margin-top:10px;align-items:center}
+  .curl-wrap pre{flex:1;margin:0;background:#f1f3f7;border:1px solid var(--border);border-radius:8px;
+    padding:8px 12px;font-size:11.5px;overflow:auto;font-family:var(--mono);color:#33414f}
+  .curl-wrap button{background:#fff;border:1px solid #b9c2cc;border-radius:6px;padding:5px 12px;font-size:12px;
+    cursor:pointer}
+  .error{color:#c0392b;font-size:13px;padding:6px 0}
+  footer{color:#8a94a1;font-size:12px;text-align:center;padding:30px 0 10px;font-family:var(--mono)}
+  @media(max-width:900px){aside{display:none}.wrap{margin-top:60px}.hero h1{font-size:18px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="logo">S</span> Satullia API</div>
+  <div>
+    <label for="server">Server</label>
+    <select id="server"></select>
+  </div>
+  <div>
+    <label for="token">Bearer token</label>
+    <input id="token" type="text" placeholder="JWT access token" style="min-width:280px" autocomplete="off">
+  </div>
+  <div>
+    <label>Quick login</label>
+    <input id="loginEmail" type="email" placeholder="email" value="test@gmail.com" style="min-width:170px">
+    <input id="loginPass" type="password" placeholder="password" value="passWORD@@22" style="min-width:120px">
+    <button class="btn primary" id="loginBtn">Get token</button>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn" id="expAll">Expand all</button>
+  <button class="btn" id="colAll">Collapse all</button>
+</header>
+<div id="toast"></div>
+
+<div class="wrap">
+  <aside id="sidebar"></aside>
+  <main>
+    <div class="hero">
+      <h1><span id="specTitle"></span> <span id="specVer" style="font-size:13px;color:#5b6b7c"></span></h1>
+      <p id="specDesc"></p>
+    </div>
+    <div class="notes">
+      <h4>Known deployment states (see API-REFERENCE.md)</h4>
+      <ul>
+        <li><code>/api/v1/deck/saved</code> and <code>/api/v1/deck/recent</code> are <b>planned</b> — they currently return <code>404</code>.</li>
+        <li>The gateway does not route <code>folders</code>, <code>profile</code>, <code>post</code> prefixes yet — pick the <i>local</i> server for those, or expect <code>404 Service not found</code>.</li>
+        <li>Post routes are registered <b>without</b> the <code>/api/v1</code> prefix (<code>/posts</code>) — use the local post-service URL (<code>http://localhost:3003</code>).</li>
+        <li>File download of a missing file returns <code>200</code> with an HTML page (never 404); uploads are not proxied on the file domain (<code>405</code>).</li>
+        <li>Unicode query params must be percent-encoded in URLs.</li>
+      </ul>
+    </div>
+    <div id="content"></div>
+    <footer>Generated from <code>satullia-api.yaml</code> · 2026-08-10 23:51 · prepared for the Satullia front-end team</footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+/* ============================= spec ============================= */
+const SPEC = {
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Satullia API",
+    "description": "Satullia backend REST API.\n\nThis document describes every HTTP endpoint exposed by the Satullia micro-services\n(Auth, Profile, Access Control, Folder/Tab, Deck, Post, App-Version and File).\n\nTwo public domains are used in the deployed (staging/prod) environment:\n\n  * `https://api-satullia.danials.space`     – gateway + routed services (auth, profile, access-control, post, deck, app-version)\n  * `https://file-satullia.danials.space`     – file service (upload/download)\n\nA gateway reverse-proxy (gorilla/mux in `gateway-service`) currently forwards:\n  `/api/v1/profile*`        -> profile-service\n  `/api/v1/auth*`           -> auth-service\n  `/api/v1/access-control*` -> access-control-service\n  `/api/v1/post*`           -> post-service\n  `/api/v1/deck*`           -> deck-service\n  `/api/v1/app-version*`    -> app-version-service\n\nThe **folder/tab** endpoints of the folder-service are NOT routed through the gateway in\nthe current deployment – call the service directly until the gateway is extended.\n\n## Authentication\nMost endpoints require a JWT access token. Send it as:\n\n  `Authorization: Bearer <access_token>`\n\nObtain a token from `POST /api/v1/auth/login` (or `verify-code` / `refresh-token`).\nAccess tokens are HS256 JWTs signed with the shared server secret and are valid for\n30 days; refresh tokens are valid for 90 days.\n",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Satullia Backend Team"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api-satullia.danials.space",
+      "description": "Deployed (staging / prod) gateway"
+    },
+    {
+      "url": "https://file-satullia.danials.space",
+      "description": "Deployed file service"
+    },
+    {
+      "url": "http://localhost:8080",
+      "description": "Local gateway"
+    },
+    {
+      "url": "http://localhost:3006",
+      "description": "Local deck-service (direct)"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Registration, login, email verification and token refresh"
+    },
+    {
+      "name": "Profile",
+      "description": "User profile read / update"
+    },
+    {
+      "name": "Access Control",
+      "description": "User privilege levels (admin manage)"
+    },
+    {
+      "name": "Folders",
+      "description": "Folder (deck of tabs) management, featured folders"
+    },
+    {
+      "name": "Tabs",
+      "description": "Tab management, save/unsave, recent + saved lists"
+    },
+    {
+      "name": "Deck",
+      "description": "Japanese-learning decks, flashcards and spaced-repetition progress"
+    },
+    {
+      "name": "Post",
+      "description": "Blog / community posts"
+    },
+    {
+      "name": "App Version",
+      "description": "App version announcements and force-update flags (admin manage)"
+    },
+    {
+      "name": "File",
+      "description": "Image / file upload and download (MinIO backed)"
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/signup": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register a new user",
+        "description": "Creates a user + profile, generates and e-mails a 6-digit verification code. Optional fields (fullname, username, bio, image_url) are nullable.",
+        "operationId": "signup",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupRequest"
+              },
+              "example": {
+                "email": "user@example.com",
+                "password": "S3cureP@ssw0rd",
+                "signup_method": "APP",
+                "fullname": "John Doe",
+                "username": "johndoe",
+                "bio": "Hello world",
+                "image_url": ""
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully (verification e-mail sent)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                },
+                "example": {
+                  "message": "User successfully registered"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Log in and get JWT tokens",
+        "description": "Validates credentials, requires the account to be verified, returns an access token (30 days) and refresh token (90 days).",
+        "operationId": "login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "example": {
+                "email": "user@example.com",
+                "password": "S3cureP@ssw0rd"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                },
+                "example": {
+                  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+                  "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing fields or invalid email/password",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "description": "User email not verified yet",
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/verify-code": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Verify the e-mail verification code",
+        "description": "Marks the user verified and returns JWT tokens.",
+        "operationId": "verifyCode",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationRequest"
+              },
+              "example": {
+                "email": "user@example.com",
+                "code": "123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid, expired or missing verification code",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/resend-verify-code": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Resend the verification code e-mail",
+        "operationId": "resendVerifyCode",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendVerificationRequest"
+              },
+              "example": {
+                "email": "user@example.com"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Code resent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                },
+                "example": {
+                  "message": "Verification code resent"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh-token": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Refresh the access token",
+        "description": "Returns a new access token using a valid refresh token.",
+        "operationId": "refreshToken",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refresh_token"
+                ],
+                "properties": {
+                  "refresh_token": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "access_token"
+                  ],
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "example": {
+                  "access_token": "eyJhbGciOiJIUzI1NiIs..."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "description": "Invalid refresh token",
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/profile": {
+      "get": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Get a user profile",
+        "description": "Either look up a public profile by `?username=`, or (with a valid token and no username) return the authenticated user's own profile.",
+        "operationId": "getProfile",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "query",
+            "required": false,
+            "description": "Look up a public profile by username",
+            "schema": {
+              "type": "string",
+              "example": "johndoe"
+            }
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Profile found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                },
+                "example": {
+                  "id": 1,
+                  "user_id": 1,
+                  "username": "johndoe",
+                  "full_name": "John Doe",
+                  "bio": "Hello",
+                  "image_url": "",
+                  "created_at": "2025-03-26T06:04:59.394518Z",
+                  "updated_at": "2025-03-26T06:04:59.394518Z",
+                  "privilege_level": [
+                    "ADMIN"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing username and token",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/profile/update": {
+      "post": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Update the authenticated user's profile",
+        "description": "All fields are optional. Only uses the value when it is provided (bio and image_url are nullable pointers).",
+        "operationId": "updateProfile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              },
+              "example": {
+                "full_name": "John Doe",
+                "bio": "Updated bio",
+                "image_url": "826c7d5b-e231-4be1-8bc9-5db6e3ecec46"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated profile (model.Profile object)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/access-control/privileges": {
+      "get": {
+        "tags": [
+          "Access Control"
+        ],
+        "summary": "Get the authenticated user's privilege levels",
+        "operationId": "getMyPrivileges",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User privileges (empty array when no privileges)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserPrivilege"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Access Control"
+        ],
+        "summary": "Update a user's privilege levels (admin only)",
+        "operationId": "updatePrivileges",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrivilegesUpdateRequest"
+              },
+              "example": {
+                "user_id": 2,
+                "privilege_levels": [
+                  "DEVELOPER",
+                  "QA"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Privileges updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                },
+                "example": {
+                  "message": "Privileges updated successfully"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Not an admin",
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/folders/all": {
+      "get": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "Get all folders (paginated)",
+        "description": "Query params `page` (default 1) and `pageSize` (default 10).",
+        "operationId": "getFolders",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 10,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated folders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "folders",
+                    "pagination"
+                  ],
+                  "properties": {
+                    "folders": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Folder"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/FolderPagination"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/folders/{id}": {
+      "get": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "Get a folder by ID",
+        "operationId": "getFolderById",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Folder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Folder"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "Delete a folder (owner only)",
+        "operationId": "deleteFolder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/folders": {
+      "post": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "Create a folder",
+        "description": "Accepts a Folder body. `cover_image_id` defaults to `default_folder_cover.jpg`, `is_active` is forced to true and `tab_count` to 0.",
+        "operationId": "insertFolder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Folder"
+              },
+              "example": {
+                "title": "My collection",
+                "description": "Tech links",
+                "category": "WORK",
+                "cover_image_id": "826c7d5b-e231-4be1-8bc9-5db6e3ecec46",
+                "tags": [
+                  "go",
+                  "backend"
+                ],
+                "color": "#8BC34A"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Folder created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message",
+                    "folder"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "folder": {
+                      "$ref": "#/components/schemas/Folder"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "Update a folder",
+        "description": "Body must include the folder `id`.",
+        "operationId": "updateFolder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Folder"
+              },
+              "example": {
+                "id": 1,
+                "title": "Updated title",
+                "description": "Updated"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Folder updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message",
+                    "folder"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "folder": {
+                      "$ref": "#/components/schemas/Folder"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/folders/search": {
+      "get": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "Search folders by title / description",
+        "operationId": "searchFolders",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching folders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Folder"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/v1/folders/featured/all": {
+      "get": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "Get all featured folders (public)",
+        "description": "Uses the featured-folder repository in the folder-service. Note the deployed gateway currently returns 404 for this path (not routed yet).",
+        "operationId": "getFeaturedFolders",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Featured folders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeaturedFolder"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/folders/featured/{id}": {
+      "get": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "Check if a folder is featured (public)",
+        "operationId": "isFolderFeatured",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Featured status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "is_featured"
+                  ],
+                  "properties": {
+                    "is_featured": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "Add a folder to featured (auth)",
+        "description": "Optional `?order=` query param sets the display order.",
+        "operationId": "addFeaturedFolder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Folders"
+        ],
+        "summary": "Remove a folder from featured (auth)",
+        "operationId": "removeFeaturedFolder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tabs": {
+      "get": {
+        "tags": [
+          "Tabs"
+        ],
+        "summary": "Get all tabs (paginated)",
+        "description": "Query params `page` (default 1) and `pageSize` (default 10). Every tab carries an `is_saved` flag (computed when a token is supplied).",
+        "operationId": "getAllTabs",
+        "security": [],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated tabs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "pagination"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TabWithStatus"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/TabPagination"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tabs"
+        ],
+        "summary": "Create a tab",
+        "description": "Requires `url` and `title`. May include notes and file attachments.",
+        "operationId": "insertTab",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InsertTabRequest"
+              },
+              "example": {
+                "title": "OpenCode",
+                "description": "CLI",
+                "url": "https://opencode.ai",
+                "folder_id": 1,
+                "tags": [
+                  "cli",
+                  "ai"
+                ],
+                "notes": [
+                  {
+                    "content": "first note"
+                  }
+                ],
+                "files": [
+                  {
+                    "uploaded_file_id": "826c7d5b-e231-4be1-8bc9-5db6e3ecec46"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tab created (complete tab incl. notes/files)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tab"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Tabs"
+        ],
+        "summary": "Update a tab",
+        "description": "The tab ID is read from the `?id=` query parameter (not the body). Notes and files passed with an `id` are updated, others are created.",
+        "operationId": "editTab",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "description": "Tab ID to edit",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InsertTabRequest"
+              },
+              "example": {
+                "title": "Updated title",
+                "url": "https://opencode.ai"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tab updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tab"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/tabs/{id}": {
+      "get": {
+        "tags": [
+          "Tabs"
+        ],
+        "summary": "Get a tab by ID",
+        "description": "Includes `is_saved`. When authenticated, the tab is recorded as recently viewed.",
+        "operationId": "getTabById",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tab with status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TabWithStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Tabs"
+        ],
+        "summary": "Delete a tab",
+        "operationId": "deleteTab",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/tabs/folder/{folder_id}": {
+      "get": {
+        "tags": [
+          "Tabs"
+        ],
+        "summary": "Get all tabs inside a folder",
+        "operationId": "tabsInFolder",
+        "security": [],
+        "parameters": [
+          {
+            "name": "folder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tabs (each with is_saved)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TabWithStatus"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/tabs/search": {
+      "get": {
+        "tags": [
+          "Tabs"
+        ],
+        "summary": "Search tabs",
+        "description": "Query param is `q` (search query), optional `page` and `pageSize`.",
+        "operationId": "searchTabs",
+        "security": [],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching tabs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TabWithStatus"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/v1/tabs/{id}/save": {
+      "post": {
+        "tags": [
+          "Tabs"
+        ],
+        "summary": "Save a tab for the authenticated user",
+        "operationId": "saveTab",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "message",
+                    "tab"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "tab": {
+                      "$ref": "#/components/schemas/Tab"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/tabs/{id}/unsave": {
+      "delete": {
+        "tags": [
+          "Tabs"
+        ],
+        "summary": "Unsave a tab",
+        "operationId": "unsaveTab",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Un-saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "tab": {
+                      "$ref": "#/components/schemas/Tab"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tabs/saved": {
+      "get": {
+        "tags": [
+          "Tabs"
+        ],
+        "summary": "Get the authenticated user's saved tabs",
+        "operationId": "getUserSavedTabs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved tabs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "tab_id": {
+                        "type": "integer"
+                      },
+                      "tab": {
+                        "$ref": "#/components/schemas/Tab"
+                      },
+                      "is_saved": {
+                        "type": "boolean",
+                        "example": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/tabs/recent": {
+      "get": {
+        "tags": [
+          "Tabs"
+        ],
+        "summary": "Get the authenticated user's recently viewed tabs",
+        "operationId": "getUserRecentTabs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent tabs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "tab_id": {
+                        "type": "integer"
+                      },
+                      "tab": {
+                        "$ref": "#/components/schemas/Tab"
+                      },
+                      "is_saved": {
+                        "type": "boolean"
+                      },
+                      "last_viewed_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deck": {
+      "post": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Create a deck (logged-in users)",
+        "description": "Requires a Bearer token. Deck `category` defaults to VOCABULARY, `level` to N5, `card_count` to 0, `difficulty` to 1.",
+        "operationId": "createDeck",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Deck"
+              },
+              "example": {
+                "title": "Basic Greetings",
+                "description": "Essential Japanese greetings",
+                "category": "VOCABULARY",
+                "level": "N5",
+                "cover_image_id": "826c7d5b-e231-4be1-8bc9-5db6e3ecec46",
+                "tags": [
+                  "greetings"
+                ],
+                "color": "#FF5722",
+                "difficulty": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Deck created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deck"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Update a deck",
+        "description": "Body must include the deck `id`. Requires a Bearer token.",
+        "operationId": "updateDeck",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Deck"
+              },
+              "example": {
+                "id": 50,
+                "title": "Updated title",
+                "difficulty": 3
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deck updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deck"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/deck/all": {
+      "get": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Get all decks (paginated)",
+        "description": "Uses `offset` + `limit` (1-based offset in the deployed version). Each deck includes an `is_saved` flag when a token is supplied.",
+        "operationId": "getAllDecks",
+        "security": [],
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated decks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckPaginated"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": 50,
+                      "title": "Common Places",
+                      "description": "Japanese vocabulary for common locations",
+                      "category": "VOCABULARY",
+                      "level": "N5",
+                      "image_ids": [
+                        "826c7d5b-e231-4be1-8bc9-5db6e3ecec46"
+                      ],
+                      "cover_image_id": "826c7d5b-e231-4be1-8bc9-5db6e3ecec46",
+                      "is_active": true,
+                      "inserted_by": 1,
+                      "card_count": 2,
+                      "difficulty": 2,
+                      "tags": [
+                        "place"
+                      ],
+                      "color": "#8BC34A",
+                      "created_at": "2025-03-26T06:04:59.394518Z",
+                      "updated_at": "2025-03-26T20:04:59.394521Z",
+                      "is_saved": false
+                    }
+                  ],
+                  "pagination": {
+                    "limit": 10,
+                    "offset": 1,
+                    "total": 17
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deck/search": {
+      "get": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Search decks",
+        "operationId": "searchDecks",
+        "security": [],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching decks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Deck"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deck/featured": {
+      "get": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Get featured decks (public)",
+        "operationId": "getFeaturedDecks",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Featured decks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeaturedDeckList"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Featured decks retrieved successfully",
+                  "data": [
+                    {
+                      "id": 1,
+                      "deck_id": 51,
+                      "display_order": 1,
+                      "added_at": "2025-03-26T21:04:59.520682Z",
+                      "deck": {
+                        "id": 51,
+                        "title": "Everyday Objects",
+                        "description": "Terms for common items",
+                        "category": "VOCABULARY",
+                        "level": "N5",
+                        "cover_image_id": "826c7d5b-e231-4be1-8bc9-5db6e3ecec46",
+                        "is_active": true,
+                        "inserted_by": 1,
+                        "card_count": 2,
+                        "difficulty": 1,
+                        "color": "#9E9E9E",
+                        "created_at": "2025-03-26T11:04:59.394525Z",
+                        "updated_at": "2025-03-26T21:04:59.394528Z"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/deck/{id}/activate": {
+      "post": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Activate a deck",
+        "operationId": "activateDeck",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/deck/{id}/deactivate": {
+      "post": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Deactivate a deck",
+        "operationId": "deactivateDeck",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deactivated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/deck/flashcard": {
+      "post": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Create a flashcard (logged-in users)",
+        "operationId": "createFlashcard",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Flashcard"
+              },
+              "example": {
+                "deck_id": 50,
+                "japanese": "頭",
+                "furigana": "あたま",
+                "romaji": "atama",
+                "meaning": "Head",
+                "example": "頭が痛いです。",
+                "example_meaning": "I have a headache.",
+                "type": "VOCABULARY",
+                "level": "N5",
+                "writing_system": "KANJI",
+                "tags": [
+                  "body",
+                  "health"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Flashcard created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flashcard"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Update a flashcard",
+        "description": "Body must include the flashcard `id`.",
+        "operationId": "updateFlashcard",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Flashcard"
+              },
+              "example": {
+                "id": 5,
+                "meaning": "Head (updated)"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Flashcard updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flashcard"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/deck/flashcard/{id}": {
+      "get": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Get a flashcard by ID",
+        "operationId": "getFlashcard",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flashcard",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flashcard"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/deck/flashcard/deck/{deck_id}": {
+      "get": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Get all flashcards in a deck",
+        "operationId": "getDeckFlashcards",
+        "security": [],
+        "parameters": [
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flashcards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Flashcard"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deck/flashcard/search": {
+      "get": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Search flashcards",
+        "operationId": "searchFlashcards",
+        "security": [],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching flashcards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Flashcard"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deck/progress/record": {
+      "post": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Record a flashcard review result (spaced repetition)",
+        "description": "Records a single review result (is_correct + proficiency) for a user/flashcard.",
+        "operationId": "recordProgress",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgressRecord"
+              },
+              "example": {
+                "user_id": 1,
+                "flashcard_id": 5,
+                "is_correct": true,
+                "proficiency": 3
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/deck/progress/user/{user_id}/due": {
+      "get": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Get the flashcards due for review for a user",
+        "description": "Returns flashcards scheduled for review based on spaced-repetition state.",
+        "operationId": "getDueFlashcards",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Due flashcards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Flashcard"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/deck/progress/user/{user_id}/deck/{deck_id}": {
+      "get": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Get a user's progress in a specific deck",
+        "operationId": "getDeckProgress",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deck progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckProgress"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/deck/saved": {
+      "get": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Get the authenticated user's saved decks  [PLANNED]",
+        "description": "Currently NOT implemented in the deployed service (HTTP 404). The `saved_decks` table exists. Planned for a future release.",
+        "operationId": "getSavedDecks",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Route not implemented yet",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/deck/recent": {
+      "get": {
+        "tags": [
+          "Deck"
+        ],
+        "summary": "Get the authenticated user's recently viewed decks  [PLANNED]",
+        "description": "Currently NOT implemented in the deployed service (HTTP 404). The `recent_decks` table exists. Planned for a future release.",
+        "operationId": "getRecentDecks",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Route not implemented yet",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/posts": {
+      "get": {
+        "tags": [
+          "Post"
+        ],
+        "summary": "Get all posts (paginated)",
+        "description": "Optional query filters `category_id`, `featured` (true/false), `page`, `page_size` (default 10, max 100).",
+        "operationId": "getAllPosts",
+        "security": [],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "featured",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "posts",
+                    "pagination"
+                  ],
+                  "properties": {
+                    "posts": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Post"
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "current_page": {
+                          "type": "integer"
+                        },
+                        "page_size": {
+                          "type": "integer"
+                        },
+                        "total_items": {
+                          "type": "integer"
+                        },
+                        "total_pages": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Post"
+        ],
+        "summary": "Create a post",
+        "description": "Requires a Bearer token. `title` and `content` are required.",
+        "operationId": "createPost",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Post"
+              },
+              "example": {
+                "title": "My first post",
+                "content": "Hello world",
+                "category_id": 1,
+                "tags": [
+                  "intro"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Post created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "message",
+                    "post"
+                  ],
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "post": {
+                      "$ref": "#/components/schemas/Post"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/posts/{id}": {
+      "get": {
+        "tags": [
+          "Post"
+        ],
+        "summary": "Get a post by ID",
+        "operationId": "getPost",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Post",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Post"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Post"
+        ],
+        "summary": "Update a post (author only)",
+        "operationId": "updatePost",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Post"
+              },
+              "example": {
+                "title": "Updated title",
+                "content": "Updated content"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Post updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "post": {
+                      "$ref": "#/components/schemas/Post"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Post"
+        ],
+        "summary": "Delete a post (author only)",
+        "operationId": "deletePost",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/posts/featured": {
+      "get": {
+        "tags": [
+          "Post"
+        ],
+        "summary": "Get featured posts",
+        "description": "Optional `limit` query param (default 10).",
+        "operationId": "getFeaturedPosts",
+        "security": [],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Featured posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Post"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/posts/{id}/featured": {
+      "put": {
+        "tags": [
+          "Post"
+        ],
+        "summary": "Set / unset a post as featured",
+        "operationId": "setFeatured",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "featured"
+                ],
+                "properties": {
+                  "featured": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Featured status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/posts/search": {
+      "get": {
+        "tags": [
+          "Post"
+        ],
+        "summary": "Search posts by title / content / author",
+        "operationId": "searchPosts",
+        "security": [],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Post"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/v1/app-version/latest": {
+      "get": {
+        "tags": [
+          "App Version"
+        ],
+        "summary": "Get the current (latest) app version (public)",
+        "operationId": "getLatestVersion",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Current app version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppVersion"
+                },
+                "example": {
+                  "id": 1,
+                  "is_current": true,
+                  "is_force": true,
+                  "title": "first version",
+                  "description": "",
+                  "version": "1.0.1",
+                  "created_at": "2024-10-28T06:24:01.113071Z",
+                  "updated_at": "2024-10-28T06:24:01.113071Z"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/app-version/all": {
+      "get": {
+        "tags": [
+          "App Version"
+        ],
+        "summary": "Get all app versions (paginated, public)",
+        "operationId": "getAllVersions",
+        "security": [],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "App versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AppVersion"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/app-version": {
+      "post": {
+        "tags": [
+          "App Version"
+        ],
+        "summary": "Create an app version (admin only)",
+        "description": "Creating a version calls `set_all_current=false` first, then inserts.",
+        "operationId": "insertVersion",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppVersionRequest"
+              },
+              "example": {
+                "title": "Release 2",
+                "description": "New features",
+                "version": "1.1.0",
+                "is_current": true,
+                "is_force": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Version created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppVersion"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "App Version"
+        ],
+        "summary": "Update an app version (admin only)",
+        "description": "The version ID is taken from the `?id=` query parameter.",
+        "operationId": "updateVersion",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppVersionRequest"
+              },
+              "example": {
+                "title": "Release 2 updated",
+                "description": "More details",
+                "version": "1.1.1",
+                "is_current": true,
+                "is_force": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Version updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppVersion"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/file/upload": {
+      "post": {
+        "tags": [
+          "File"
+        ],
+        "summary": "Upload an image",
+        "description": "Multipart/form-data upload with a field named `file`. The service decodes the image,\nstores the original and generates `_preview` (1000px), `_thumbnail` (400px) and\n`_icon` (100px) JPEG variants in MinIO (`satullia` bucket). The base filename is a\ngenerated UUID used to build subsequent variant filenames, e.g.\n`826c7d5b-..._thumbnail`.\n",
+        "operationId": "uploadFile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Uploaded file record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadedFile"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing file or invalid image",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/file/download/{filename}": {
+      "get": {
+        "tags": [
+          "File"
+        ],
+        "summary": "Download a file / image variant",
+        "description": "Streams the stored object. Content-Type and Content-Length are set from MinIO metadata. Public – no authentication required.",
+        "operationId": "downloadFile",
+        "security": [],
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "description": "e.g. `826c7d5b-e231-4be1-8bc9-5db6e3ecec46` or `826c7d5b-e231-4be1-8bc9-5db6e3ecec46_thumbnail`",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File stream",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File not found",
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/status": {
+      "head": {
+        "tags": [
+          "App Version"
+        ],
+        "summary": "Gateway health check (HEAD)",
+        "description": "Returns 200 when the gateway is up.",
+        "operationId": "gatewayStatus",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Healthy"
+          },
+          "405": {
+            "description": "Method not allowed (only HEAD supported)"
+          }
+        }
+      }
+    },
+    "/@{username}": {
+      "get": {
+        "tags": [
+          "App Version"
+        ],
+        "summary": "Server-side rendered profile page",
+        "description": "Renders an HTML profile page for the given username (SEO).",
+        "operationId": "ssrProfile",
+        "security": [],
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "description": "Profile username prefixed with @",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTML page (text/html)"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "HS256 JWT access token from POST /api/v1/auth/login."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Bad request – missing or invalid payload/params",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing, invalid or expired access token / not verified",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated but not allowed to perform this action",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found (or route not implemented)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "Server error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "SignupRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "signup_method"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1
+          },
+          "signup_method": {
+            "$ref": "#/components/schemas/SignupMethod"
+          },
+          "fullname": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string"
+          }
+        }
+      },
+      "SignupMethod": {
+        "type": "string",
+        "enum": [
+          "APP",
+          "GOOGLE",
+          "APPLE",
+          "WHATSAPP"
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "VerificationRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "code"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "code": {
+            "type": "string",
+            "example": "123456"
+          }
+        }
+      },
+      "ResendVerificationRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
+      "TokenPair": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "code",
+                  "message"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "string",
+                "description": "Simpler error string used by some handlers (field is a JSON string)"
+              }
+            ]
+          }
+        }
+      },
+      "Profile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "privilege_level": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrivilegeLevel"
+            }
+          }
+        }
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "full_name": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string"
+          }
+        }
+      },
+      "PrivilegeLevel": {
+        "type": "string",
+        "enum": [
+          "ADMIN",
+          "SUPPORT",
+          "QA",
+          "DEMO",
+          "DEVELOPER"
+        ]
+      },
+      "UserPrivilege": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "privilege_level": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrivilegeLevel"
+            }
+          },
+          "given_by": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PrivilegesUpdateRequest": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "privilege_levels"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "integer"
+          },
+          "privilege_levels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrivilegeLevel"
+            }
+          }
+        }
+      },
+      "Folder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "WORK",
+              "PERSONAL",
+              "EDUCATION",
+              "OTHER"
+            ]
+          },
+          "level": {
+            "type": "string"
+          },
+          "image_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cover_image_id": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "inserted_by": {
+            "type": "integer"
+          },
+          "tab_count": {
+            "type": "integer"
+          },
+          "difficulty": {
+            "type": "integer"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "color": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FolderPagination": {
+        "type": "object",
+        "properties": {
+          "total_count": {
+            "type": "integer"
+          },
+          "total_pages": {
+            "type": "integer"
+          },
+          "current_page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "has_next_page": {
+            "type": "boolean"
+          },
+          "has_previous_page": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FeaturedFolder": {
+        "type": "object",
+        "description": "Featured folder row (featured_folders table)",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "folder_id": {
+            "type": "integer"
+          },
+          "display_order": {
+            "type": "integer"
+          },
+          "added_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "folder": {
+            "$ref": "#/components/schemas/Folder"
+          }
+        }
+      },
+      "InsertTabRequest": {
+        "type": "object",
+        "required": [
+          "title",
+          "url"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "folder_id": {
+            "type": "integer"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TabNote"
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TabFile"
+            }
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Tab": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "folder_id": {
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "inserted_by": {
+            "type": "integer"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TabNote"
+            }
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TabFile"
+            }
+          }
+        }
+      },
+      "TabWithStatus": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Tab"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "is_saved": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "TabNote": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "tab_id": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TabFile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "tab_id": {
+            "type": "integer"
+          },
+          "uploaded_file_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TabPagination": {
+        "type": "object",
+        "properties": {
+          "total_count": {
+            "type": "integer"
+          },
+          "total_pages": {
+            "type": "integer"
+          },
+          "current_page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "has_next_page": {
+            "type": "boolean"
+          },
+          "has_previous_page": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Deck": {
+        "type": "object",
+        "description": "A flashcard deck. Response decks may also include `is_saved`.",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "default": "VOCABULARY"
+          },
+          "level": {
+            "type": "string",
+            "default": "N5"
+          },
+          "image_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cover_image_id": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "inserted_by": {
+            "type": "integer"
+          },
+          "card_count": {
+            "type": "integer"
+          },
+          "difficulty": {
+            "type": "integer",
+            "default": 1
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "color": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "is_saved": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DeckPaginated": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Deck"
+            }
+          },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "integer"
+              },
+              "offset": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "FeaturedDeckList": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeaturedDeck"
+            }
+          }
+        }
+      },
+      "FeaturedDeck": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "deck_id": {
+            "type": "integer"
+          },
+          "display_order": {
+            "type": "integer"
+          },
+          "added_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deck": {
+            "$ref": "#/components/schemas/Deck"
+          }
+        }
+      },
+      "Flashcard": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "deck_id": {
+            "type": "integer"
+          },
+          "japanese": {
+            "type": "string"
+          },
+          "furigana": {
+            "type": "string"
+          },
+          "romaji": {
+            "type": "string"
+          },
+          "meaning": {
+            "type": "string"
+          },
+          "example": {
+            "type": "string"
+          },
+          "example_meaning": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "default": "VOCABULARY"
+          },
+          "level": {
+            "type": "string",
+            "default": "N5"
+          },
+          "writing_system": {
+            "type": "string",
+            "default": "KANJI"
+          },
+          "audio_url": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "notes": {
+            "type": "string"
+          },
+          "inserted_by": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProgressRecord": {
+        "type": "object",
+        "description": "A single flashcard review record (learning_progress table)",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "flashcard_id": {
+            "type": "integer"
+          },
+          "proficiency": {
+            "type": "integer",
+            "default": 0
+          },
+          "review_count": {
+            "type": "integer",
+            "default": 0
+          },
+          "correct_count": {
+            "type": "integer",
+            "default": 0
+          },
+          "is_correct": {
+            "type": "boolean"
+          },
+          "last_reviewed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "next_review_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DeckProgress": {
+        "type": "object",
+        "description": "Aggregate progress in a deck (deck_progress table)",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "deck_id": {
+            "type": "integer"
+          },
+          "cards_completed": {
+            "type": "integer",
+            "default": 0
+          },
+          "total_cards": {
+            "type": "integer",
+            "default": 0
+          },
+          "average_proficiency": {
+            "type": "number",
+            "format": "float",
+            "default": 0
+          },
+          "last_accessed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Post": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string"
+          },
+          "author_id": {
+            "type": "integer"
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "image_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cover_image_id": {
+            "type": "string"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "is_featured": {
+            "type": "boolean"
+          },
+          "category_id": {
+            "type": "integer"
+          },
+          "category_name": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "view_count": {
+            "type": "integer"
+          },
+          "approval_status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "approved_by": {
+            "type": "integer"
+          },
+          "inserted_by": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publication_status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED"
+            ]
+          },
+          "visibility_scope": {
+            "type": "string"
+          },
+          "deck_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "AppVersion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "is_current": {
+            "type": "boolean"
+          },
+          "is_force": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AppVersionRequest": {
+        "type": "object",
+        "required": [
+          "title",
+          "version"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "is_current": {
+            "type": "boolean"
+          },
+          "is_force": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UploadedFile": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "description": "Base filename (UUID) stored in DB"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+};
+
+/* ============================= helpers ============================= */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const METHODS = {get:"#61affe",post:"#49cc90",put:"#fca130",delete:"#f93e3e",head:"#9012fe",patch:"#50e3c2",options:"#0b5cab"};
+const fmtTime = t => t < 1000 ? Math.round(t) + " ms" : (t/1000).toFixed(2) + " s";
+
+function toast(msg, ms){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._h); toast._h = setTimeout(() => t.classList.remove("show"), ms || 3500);
+}
+
+function resolve(ref, depth){
+  if (depth > 6 || !ref || typeof ref !== "string") return {type:"object"};
+  if (!ref.startsWith("#/components/")) return {type:"object"};
+  const parts = ref.replace("#/components/", "").split("/");
+  let node = SPEC.components;
+  for (const p of parts){ node = node && node[p]; if (!node) return {type:"object"}; }
+  return node;
+}
+function ownProp(schema){ return schema && schema.properties && Object.entries(schema.properties); }
+function sampleFor(schema, depth){
+  if (depth > 5) return null;
+  schema = schema || {type:"object"};
+  if (schema.$ref) schema = resolve(schema.$ref, depth + 1);
+  if (schema.allOf && schema.allOf.length){ let out = {}; for (const s of schema.allOf){ const o = sampleFor(s, depth + 1); if (o && typeof o === "object") out = Object.assign(out, o); } return out; }
+  switch (schema.type){
+    case "object": {
+      const out = {};
+      const props = Object.entries(schema.properties || {});
+      const req = new Set(schema.required || []);
+      const ordered = [...props.filter(([k]) => req.has(k)), ...props.filter(([k]) => !req.has(k))];
+      for (const [k, ps] of ordered) out[k] = ps.example !== undefined ? ps.example : sampleFor(ps, depth + 1);
+      return out;
+    }
+    case "array": return [sampleFor(schema.items, depth + 1)];
+    case "integer": case "number": return 0;
+    case "boolean": return false;
+    case "string": default:
+      if (schema.enum && schema.enum.length) return schema.enum[0];
+      if (schema.format === "uuid") return "00000000-0000-0000-0000-000000000000";
+      if (schema.example !== undefined) return schema.example;
+      return "";
+  }
+}
+function bodyExample(op){
+  const c = op.requestBody && op.requestBody.content, key = c && Object.keys(c)[0];
+  if (!c) return {text:"", type:null, media:null};
+  const media = c[key];
+  if (media.example !== undefined) return {text: JSON.stringify(media.example, null, 2), type:"json", media:key};
+  if (media.schema) return {text: JSON.stringify(sampleFor(media.schema, 0), null, 2) || "{}", type: media.schema.type === "string" && media.schema.format === "binary" ? "binary" : "json", media:key};
+  return {text:"", type:null, media:key};
+}
+function paramDefault(p){
+  if (p.example !== undefined) return p.example;
+  const s = p.schema || {};
+  if (s.default !== undefined) return s.default;
+  switch (s.type){ case "integer": case "number": return 1; case "boolean": return "false"; default: return ""; }
+}
+
+/* ============================= state ============================= */
+const state = { token: localStorage.getItem("satullia.token") || "", server: localStorage.getItem("satullia.server") || 0 };
+const tagDesc = {}; (SPEC.tags || []).forEach(t => tagDesc[t.name] = t.description);
+const opsByTag = new Map();
+const allOps = [];
+for (const [path, item] of Object.entries(SPEC.paths || {})){
+  for (const [method, op] of Object.entries(item)){
+    if (!METHODS[method]) continue;
+    const tags = (op.tags && op.tags.length) ? op.tags : ["Other"];
+    const id = "op-" + tags[0].toLowerCase().replace(/\s+/g, "-") + "-" + method + "-" + path.replace(/[^a-z0-9]+/gi, "-");
+    allOps.push({path, method, op, tags, id});
+    for (const t of tags){ if (!opsByTag.has(t)) opsByTag.set(t, []); opsByTag.get(t).push({path, method, op, id}); }
+  }
+}
+
+/* ============================= top bar ============================= */
+function setupTopBar(){
+  $("#specTitle").textContent = SPEC.info.title;
+  $("#specVer").textContent = "v" + SPEC.info.version;
+  $("#specDesc").textContent = SPEC.info.description.split("\n").map(l => l.trim()).filter(Boolean)[0] || "";
+  const sel = $("#server");
+  (SPEC.servers || []).forEach((s, i) => {
+    const o = document.createElement("option"); o.value = i; o.textContent = s.url + "  —  " + (s.description || "");
+    sel.appendChild(o);
+  });
+  sel.value = Math.min(state.server, (SPEC.servers.length - 1));
+  $("#token").value = state.token;
+  sel.addEventListener("change", () => { state.server = sel.value; localStorage.setItem("satullia.server", sel.value); });
+  $("#token").addEventListener("change", () => { state.token = $("#token").value.trim(); localStorage.setItem("satullia.token", state.token); });
+  $("#loginBtn").addEventListener("click", async () => {
+    const base = SPEC.servers[+sel.value].url;
+    const email = $("#loginEmail").value.trim(), pass = $("#loginPass").value;
+    $("#loginBtn").disabled = true; $("#loginBtn").textContent = "…";
+    try {
+      const r = await fetch(base + "/api/v1/auth/login", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({email, password}) });
+      const j = await r.json().catch(() => ({}));
+      const t = (j.data && (j.data.access_token || j.data.token)) || j.access_token || j.token || "";
+      if (!t) throw new Error("no token in response: " + (j.error && (j.error.message || j.error.code) || JSON.stringify(j).slice(0, 120)));
+      state.token = t; $("#token").value = t; localStorage.setItem("satullia.token", t);
+      toast("Token obtained (" + (j.data && j.data.refresh_token ? "access+refresh" : "access") + ")" + (r.ok ? "" : " — note: HTTP " + r.status));
+    } catch (e) { toast("Login failed: " + e.message, 6000); }
+    finally { $("#loginBtn").disabled = false; $("#loginBtn").textContent = "Get token"; }
+  });
+  $("#expAll").addEventListener("click", () => $$(".op").forEach(o => o.classList.add("open")));
+  $("#colAll").addEventListener("click", () => $$(".op").forEach(o => o.classList.remove("open")));
+}
+
+/* ============================= sidebar ============================= */
+function setupSidebar(){
+  const sb = $("#sidebar");
+  for (const [tag, ops] of opsByTag){
+    const h = document.createElement("div"); h.className = "tag"; h.textContent = tag + " (" + ops.length + ")";
+    sb.appendChild(h);
+    ops.forEach(({id, path, method}) => {
+      const a = document.createElement("a"); a.href = "#" + id;
+      a.innerHTML = '<span class="m" style="background:' + METHODS[method] + '">' + method.toUpperCase() + '</span><span>' + esc(path) + '</span>';
+      a.addEventListener("click", () => { $$("aside a").forEach(x => x.classList.remove("is-active")); a.classList.add("is-active"); });
+      sb.appendChild(a);
+    });
+  }
+}
+
+/* ============================= operation cards ============================= */
+function renderOps(){
+  const content = $("#content");
+  for (const [tag, ops] of opsByTag){
+    const sec = document.createElement("section"); sec.className = "tagsec";
+    const head = document.createElement("div"); head.className = "taghead";
+    head.innerHTML = '<h2>' + esc(tag) + '</h2><span class="cnt">' + ops.length + ' op' + (ops.length > 1 ? "s" : "") + '</span>' +
+      (tagDesc[tag] ? '<span class="cnt" style="font-family:inherit;font-size:12.5px;color:#5b6b7c">— ' + esc(tagDesc[tag]) + '</span>' : "");
+    sec.appendChild(head);
+    ops.forEach(o => sec.appendChild(renderOp(o)));
+    content.appendChild(sec);
+  }
+}
+
+function renderOp({path, method, op, id}){
+  const card = document.createElement("div"); card.className = "op"; card.id = id;
+  const bodyEx = bodyExample(op);
+  const params = op.parameters || [];
+
+  /* header */
+  const head = document.createElement("div"); head.className = "op-head";
+  head.innerHTML = '<span class="badge" style="background:' + METHODS[method] + '">' + method.toUpperCase() + '</span>' +
+    '<span class="path">' + esc(path) + '</span>' +
+    '<span class="sum">' + esc(op.summary || "") + '</span><span class="chev">▶</span>';
+  head.addEventListener("click", () => card.classList.toggle("open"));
+  card.appendChild(head);
+
+  /* try-it-out body */
+  const body = document.createElement("div"); body.className = "op-body";
+  if (op.description) { const d = document.createElement("div"); d.className = "op-desc"; d.textContent = op.description; body.appendChild(d); }
+  if ((op.security || []).some(s => s.bearerAuth)) {
+    const s = document.createElement("div"); s.className = "op-desc"; s.style.color = "#8a6d1a";
+    s.textContent = "Requires Authorization: Bearer <token> (set in the top bar).";
+    body.appendChild(s);
+  }
+
+  /* parameters */
+  const pathPar = params.filter(p => p.in === "path"), queryPar = params.filter(p => p.in === "query");
+  if (pathPar.length || queryPar.length){
+    const tbl = document.createElement("table"); tbl.className = "pars";
+    tbl.innerHTML = "<tr><th style='width:140px'>Name</th><th style='width:70px'>Where</th><th style='width:60px'>Req</th><th style='width:120px'>Type</th><th>Value</th></tr>";
+    for (const p of [...pathPar, ...queryPar]){
+      const tr = document.createElement("tr");
+      const def = paramDefault(p);
+      tr.innerHTML =
+        '<td><code>' + esc(p.name) + '</code>' + (p.description ? '<div class="par-in">' + esc(p.description) + '</div>' : "") + '</td>' +
+        '<td class="par-in">' + p.in + '</td>' +
+        '<td>' + (p.required ? '<span class="req-dot">*</span>' : "") + '</td>' +
+        '<td class="par-type">' + esc((p.schema && p.schema.type) || (p.schema && p.schema.$ref && "ref") || "string") +
+          (p.schema && p.schema.format ? " / " + esc(p.schema.format) : "") + '</td>' +
+        '<td><input data-param="' + esc(p.name) + '" data-in="' + p.in + '" value="' + esc(def) + '"' +
+          (p.required ? ' required' : "") + '></td>';
+      tbl.appendChild(tr);
+    }
+    body.appendChild(tbl);
+  }
+
+  /* request body editor */
+  if (bodyEx.media && bodyEx.media.includes("multipart")){
+    const l = document.createElement("div"); l.className = "lbl"; l.textContent = "Request body — multipart/form-data";
+    const f = document.createElement("input"); f.type = "file"; f.className = "file-input";
+    body.appendChild(l); body.appendChild(f);
+  } else if (bodyEx.type === "json"){
+    const l = document.createElement("div"); l.className = "lbl"; l.textContent = "Request body — application/json";
+    const ta = document.createElement("textarea"); ta.className = "body-json"; ta.spellcheck = false;
+    ta.value = bodyEx.text;
+    const edHint = document.createElement("div"); edHint.style.cssText = "font-size:11.5px;color:#8a94a1;margin-top:4px";
+    edHint.textContent = "Edit freely — Execute sends it as-is.";
+    body.appendChild(l); body.appendChild(ta); body.appendChild(edHint);
+  }
+
+  /* actions */
+  const actions = document.createElement("div"); actions.className = "op-actions";
+  const tryBtn = document.createElement("button"); tryBtn.className = "btn"; tryBtn.textContent = "Try it out";
+  const execBtn = document.createElement("button"); execBtn.className = "btn exec"; execBtn.textContent = "Execute";
+  execBtn.style.display = "none";
+  actions.appendChild(tryBtn); actions.appendChild(execBtn);
+  const hint = document.createElement("span"); hint.className = "hint"; hint.textContent = "runs live against the selected server";
+  actions.appendChild(hint);
+  body.appendChild(actions);
+
+  /* result panel */
+  const res = document.createElement("div"); res.className = "result";
+  res.innerHTML = '<div class="r-head"></div><pre class="res-body"></pre>';
+  const curlWrap = document.createElement("div"); curlWrap.className = "curl-wrap"; curlWrap.style.display = "none";
+  curlWrap.innerHTML = '<pre class="curl"></pre><button class="copy-curl">Copy curl</button>';
+  res.appendChild(curlWrap);
+  body.appendChild(res);
+  card.appendChild(body);
+
+  tryBtn.addEventListener("click", () => {
+    card.classList.add("open");
+    const editing = execBtn.style.display !== "none";
+    if (editing){
+      execBtn.style.display = "none"; tryBtn.textContent = "Try it out";
+      hint.textContent = "runs live against the selected server";
+      res.classList.remove("show");
+      $$(".result.show").forEach(r => r.classList.remove("show"));
+    } else {
+      execBtn.style.display = "inline-block"; tryBtn.textContent = "Cancel";
+      hint.textContent = "edit parameters, then Execute";
+      res.classList.remove("show");
+      $$(".result.show").forEach(r => r.classList.remove("show"));
+    }
+  });
+  execBtn.addEventListener("click", () => execOp(card, path, method, op, res, bodyEx, execBtn, tryBtn, hint));
+
+  card.querySelector(".copy-curl").addEventListener("click", () => {
+    navigator.clipboard.writeText(card.querySelector(".curl").textContent).then(() => toast("curl copied"));
+  });
+
+  return card;
+}
+
+async function execOp(card, path, method, op, res, bodyEx, execBtn, tryBtn, hint){
+  const base = SPEC.servers[+$("#server").value].url;
+  const inputs = card.querySelectorAll("input[data-param]");
+  let url = base + path;
+  const queries = [];
+  inputs.forEach(inp => {
+    const name = inp.dataset.param, where = inp.dataset.in, v = inp.value.trim();
+    if (where === "path") url = url.replace("{" + name + "}", encodeURIComponent(v || ""));
+    if (where === "query" && v !== "") queries.push(encodeURIComponent(name) + "=" + encodeURIComponent(v));
+  });
+  if (queries.length) url += "?" + queries.join("&");
+
+  const headers = {};
+  if (state.token) headers["Authorization"] = "Bearer " + state.token;
+  let bodyData;
+  if (bodyEx.media && bodyEx.media.includes("multipart")){
+    const fd = new FormData();
+    const f = card.querySelector(".file-input").files[0];
+    if (f) fd.append("file", f); else { showRes(res, 400, "Select a file first", 0, "", "", url); return; }
+    bodyData = fd;
+  } else if (bodyEx.type === "json"){
+    const ta = card.querySelector(".body-json"), raw = ta.value.trim();
+    if (raw){ try { bodyData = JSON.stringify(JSON.parse(raw)); headers["Content-Type"] = "application/json"; }
+      catch (e){ showRes(res, 400, "Invalid JSON: " + e.message, 0, "", "", url); return; } }
+  }
+
+  /* curl preview */
+  let curl = "curl -s -X " + method.toUpperCase() + " '" + url + "'";
+  if (state.token) curl += " \\\n  -H 'Authorization: Bearer <token>'";
+  if (bodyData && typeof bodyData === "string") curl += " \\\n  -H 'Content-Type: application/json' \\\n  -d '" + bodyData.replace(/'/g, "'\\''") + "'";
+  const curEl = card.querySelector(".curl"); curEl.textContent = curl;
+  card.querySelector(".curl-wrap").style.display = "flex";
+
+  const rHead = res.querySelector(".r-head");
+  rHead.innerHTML = '<span class="r-meta">' + esco(method.toUpperCase()) + ' ' + esc(path) + '</span><span class="r-url">' + esc(url) + '</span>';
+  rHead.querySelector(".r-url").style.marginLeft = "auto";
+  tryBtn.textContent = "Cancel"; tryBtn.disabled = true; execBtn.disabled = true; execBtn.textContent = "Executing…";
+  const t0 = performance.now();
+  try {
+    const r = await fetch(url, { method: method.toUpperCase(), headers, body: bodyData, redirect: "follow" });
+    const ms = performance.now() - t0;
+    const ct = r.headers.get("content-type") || "";
+    const text = await r.text();
+    const head = res.querySelector(".r-head");
+    const status = r.status, ok = status < 300, warn = status < 500;
+    const respDesc = op.responses && op.responses[String(status)] && op.responses[String(status)].description;
+    const bodyEl = res.querySelector(".res-body");
+    bodyEl.innerHTML = "";
+    if (ct.includes("json")){
+      try {
+        const j = JSON.parse(text);
+        bodyEl.appendChild(renderJson(j));
+      } catch (e){ bodyEl.textContent = text || "(empty body)"; }
+    } else if (ct.includes("text") || ct.includes("html")){
+      bodyEl.textContent = text.length > 20000 ? text.slice(0, 20000) + "\n… (truncated, " + text.length + " bytes)" : text;
+    } else {
+      bodyEl.innerHTML = '<span class="err-note">Binary response (' + (ct || "unknown type") + ") — " + text.length + " bytes. Not rendered as JSON.</span>";
+    }
+    head.innerHTML =
+      '<span class="r-status ' + (ok ? "good" : warn ? "warn" : "bad") + '">' + status + ' ' + esc(r.statusText) + '</span>' +
+      '<span class="r-meta">' + fmtTime(ms) + '</span>' +
+      '<span class="r-meta">' + esc(ct.split(";")[0] || "") + '</span>' +
+      (respDesc ? '<span class="r-desc">' + esc(respDesc) + '</span>' : "") +
+      '<span class="r-url" style="margin-left:auto;max-width:60%;overflow:hidden;text-overflow:ellipsis">' + esc(url) + '</span>';
+    res.classList.add("show");
+  } catch (e){
+    showRes(res, 0, "Network error: " + e.message, performance.now() - t0, "", "", url);
+  } finally {
+    tryBtn.disabled = false; execBtn.disabled = false; execBtn.textContent = "Execute";
+  }
+}
+
+function showRes(res, status, text, ms, ct, respDesc, url){
+  const head = res.querySelector(".r-head");
+  head.innerHTML =
+    '<span class="r-status ' + (status >= 200 && status < 300 ? "good" : status > 0 && status < 500 ? "warn" : "bad") + '">' + (status || "ERR") + '</span>' +
+    '<span class="r-meta">' + fmtTime(ms) + '</span>' +
+    (respDesc ? '<span class="r-desc">' + esc(respDesc) + '</span>' : "") +
+    '<span class="r-url">' + esc(url) + '</span>';
+  const bodyEl = res.querySelector(".res-body"); bodyEl.textContent = text;
+  res.classList.add("show");
+}
+
+/* pretty JSON renderer */
+function renderJson(j, depth){
+  const box = document.createElement("span");
+  if (j === null) { box.innerHTML = '<span class="tok-k">null</span>'; return box; }
+  if (Array.isArray(j)){
+    if (j.length === 0){ box.innerHTML = '<span class="tok-k">[ ]</span>'; return box; }
+    box.innerHTML = '[';
+    j.forEach((v, i) => { box.appendChild(renderJson(v, depth + 1)); if (i < j.length - 1) box.appendChild(document.createTextNode(",")); });
+    box.innerHTML += ']';
+    return box;
+  }
+  if (typeof j === "object"){
+    const keys = Object.keys(j);
+    if (!keys.length){ box.innerHTML = '<span class="tok-k">{ }</span>'; return box; }
+    box.innerHTML = '{';
+    keys.forEach((k, i) => {
+      const s = document.createElement("span");
+      s.innerHTML = '<span class="tok-s">&quot;' + esc(k) + '&quot;</span>: ';
+      s.appendChild(renderJson(j[k], depth + 1));
+      if (i < keys.length - 1) s.appendChild(document.createTextNode(","));
+      box.appendChild(s);
+    });
+    box.innerHTML += '}';
+    return box;
+  }
+  if (typeof j === "string"){ box.innerHTML = '<span class="tok-s">&quot;' + esc(j) + '&quot;</span>'; return box; }
+  if (typeof j === "boolean"){ box.innerHTML = '<span class="tok-b">' + j + '</span>'; return box; }
+  box.innerHTML = '<span class="tok-n">' + j + '</span>';
+  return box;
+}
+function esco(s){ return esc(s); }
+
+/* ============================= init ============================= */
+setupTopBar();
+setupSidebar();
+renderOps();
+</script>
+</body>
+</html>
