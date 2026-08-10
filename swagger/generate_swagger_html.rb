@@ -37,6 +37,7 @@ if File.exist?(env_path)
 end
 TEST_EMAIL = env["TEST_EMAIL"] || "test@gmail.com"
 TEST_PASSWORD = env["TEST_PASSWORD"] || "passWORD@@22"
+CREDS_JSON = { "email" => TEST_EMAIL, "password" => TEST_PASSWORD }.to_json.gsub("</", "<\\/")
 
 # ----------------------------------------------------------------------------
 # Documented-responses panel data: for each operation, the status codes, their
@@ -141,6 +142,7 @@ html = <<~'HTML'
     padding:6px 12px;font-size:12.5px;cursor:pointer}
   header .btn:hover{background:#3b3b44}
   header .btn.primary{background:#49cc90;border-color:#49cc90;color:#062b1a;font-weight:700}
+  .creds-hint{font-size:10.5px;color:#8f99a8;font-family:var(--mono);margin-top:3px;letter-spacing:.2px}
   .spacer{flex:1}
   #toast{position:fixed;top:60px;right:16px;z-index:99;background:#152238;color:#e8f1ff;padding:10px 16px;
     border-radius:8px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.25);opacity:0;transition:opacity .25s;
@@ -271,9 +273,10 @@ html = <<~'HTML'
   </div>
   <div>
     <label>Quick login</label>
-    <input id="loginEmail" type="email" placeholder="email" value="__TEST_EMAIL__" style="min-width:170px">
-    <input id="loginPass" type="password" placeholder="password" value="__TEST_PASSWORD__" style="min-width:120px">
+    <input id="loginEmail" type="email" placeholder="email" style="min-width:170px" autocomplete="username">
+    <input id="loginPass" type="password" placeholder="password" style="min-width:120px" autocomplete="current-password">
     <button class="btn primary" id="loginBtn">Get token</button>
+    <div class="creds-hint" id="credsHint"></div>
   </div>
   <div class="spacer"></div>
   <button class="btn" id="expAll">Expand all</button>
@@ -308,6 +311,7 @@ html = <<~'HTML'
 /* ============================= spec ============================= */
 const SPEC = __SPEC_JSON__;
 const RESP = __RESP_MAP__;
+const CREDS = __CREDS_JSON__;
 
 /* ============================= helpers ============================= */
 const $ = s => document.querySelector(s);
@@ -398,6 +402,10 @@ function setupTopBar(){
   $("#token").value = state.token;
   sel.addEventListener("change", () => { state.server = sel.value; localStorage.setItem("satullia.server", sel.value); });
   $("#token").addEventListener("change", () => { state.token = $("#token").value.trim(); localStorage.setItem("satullia.token", state.token); });
+  /* credentials from .env (bundled at build time) — prefilled + shown visibly */
+  if (CREDS.email){ $("#loginEmail").value = CREDS.email; }
+  if (CREDS.password){ $("#loginPass").value = CREDS.password; }
+  $("#credsHint").textContent = "from scripts/.env: " + CREDS.email + " / " + CREDS.password;
   $("#loginBtn").addEventListener("click", async () => {
     const base = SPEC.servers[+sel.value].url;
     const email = $("#loginEmail").value.trim(), pass = $("#loginPass").value;
@@ -714,8 +722,7 @@ renderOps();
 </html>
 HTML
 
-html = html.gsub("__SPEC_JSON__", json).gsub("__RESP_MAP__", RESP_MAP_JSON).gsub("__BUILT__", built)
-html = html.gsub("__TEST_EMAIL__", TEST_EMAIL.gsub('"', "&quot;")).gsub("__TEST_PASSWORD__", TEST_PASSWORD.gsub('"', "&quot;"))
+html = html.gsub("__SPEC_JSON__", json).gsub("__RESP_MAP__", RESP_MAP_JSON).gsub("__CREDS_JSON__", CREDS_JSON).gsub("__BUILT__", built)
 
 Dir.mkdir(File.dirname(OUT)) unless Dir.exist?(File.dirname(OUT))
 File.write(OUT, html)
