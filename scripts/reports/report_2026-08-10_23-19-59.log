@@ -1,0 +1,9 @@
+
+[1m==== FILE SERVICE — https://file-satullia.danials.space ====[0m
+  [0;36mGET /api/v1/file/download/{filename} (public)[0m
+  [0;32m✔ PASS[0m  download thumbnail  (HTTP 200)
+  [0;32m✔ PASS[0m  binary stream received (body non-empty: yes)
+  [0;36mGET /api/v1/file/download/nonexistent-file-xyz (deployed quirk: 200 + HTML page)[0m
+  [0;32m✔ PASS[0m  missing file (200 = HTML fallback page quirk on deployed host)  (HTTP 200)
+  [0;36mPOST /api/v1/file/upload (no token — 405 on deployed host, 401 on :3005)[0m
+  [0;32m✔ PASS[0m  upload requires auth (405 = upload not proxied)  (HTTP 405)

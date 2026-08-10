@@ -1,0 +1,514 @@
+{
+  "info": {
+    "_postman_id": "9f1a4d5e-2b7c-4a8e-9d3f-6c2b5a8e1d4f",
+    "name": "Satullia API",
+    "description": "Satullia backend API collection. Set {{base_url}} (https://api-satullia.danials.space) and {{file_url}} (https://file-satullia.danials.space). Login sets {{auth_token}} automatically via the 'Auth > Token' pre-script.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://api-satullia.danials.space" },
+    { "key": "file_url", "value": "https://file-satullia.danials.space" },
+    { "key": "auth_token", "value": "" },
+    { "key": "email", "value": "test@gmail.com" },
+    { "key": "password", "value": "passWORD@@22" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /api/v1/auth/token (set {{auth_token}})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const d = pm.response.json();",
+                  "const t = d && (d.data && (d.data.access_token || d.data.token) || d.access_token || d.token);",
+                  "if (t) pm.collectionVariables.set('auth_token', t);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/auth/token", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "token"] }
+          }
+        },
+        {
+          "name": "GET /api/v1/auth/profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/auth/profile", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "profile"] }
+          }
+        },
+        {
+          "name": "GET /api/v1/auth/refresh-token",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/auth/refresh-token", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "refresh-token"] }
+          }
+        },
+        {
+          "name": "POST /api/v1/auth/signup",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"newuser@gmail.com\",\n  \"password\": \"StrongPass123!\",\n  \"username\": \"newuser\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/auth/signup", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "signup"] }
+          }
+        },
+        {
+          "name": "GET /api/v1/auth/verify-email",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/verify-email?token=TOKEN",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "verify-email"],
+              "query": [{ "key": "token", "value": "TOKEN" }]
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/auth/resend-verification",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/auth/resend-verification", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "resend-verification"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "GET /api/v1/profile/:username",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/profile/test", "host": ["{{base_url}}"], "path": ["api", "v1", "profile", ":username"], "variable": [{ "key": "username", "value": "test" }] }
+          }
+        },
+        {
+          "name": "GET /api/v1/profile (self / update)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/profile", "host": ["{{base_url}}"], "path": ["api", "v1", "profile"] }
+          }
+        },
+        {
+          "name": "PUT /api/v1/profile (update)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"bio\": \"Updated bio\",\n  \"avatar_url\": \"https://example.com/avatar.png\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/profile", "host": ["{{base_url}}"], "path": ["api", "v1", "profile"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Access Control",
+      "item": [
+        {
+          "name": "GET /api/v1/access-control/user/privileges",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/access-control/user/privileges", "host": ["{{base_url}}"], "path": ["api", "v1", "access-control", "user", "privileges"] }
+          }
+        },
+        {
+          "name": "PUT /api/v1/access-control/user/privileges (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"user_id\": 1,\n  \"privileges\": [\"READ\", \"WRITE\"]\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/access-control/user/privileges", "host": ["{{base_url}}"], "path": ["api", "v1", "access-control", "user", "privileges"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Folders & Tabs",
+      "item": [
+        {
+          "name": "GET /api/v1/folders/featured/all",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:8080/api/v1/folders/featured/all", "host": ["http://localhost:8080"], "path": ["api", "v1", "folders", "featured", "all"] }
+          }
+        },
+        {
+          "name": "GET /api/v1/folders/all",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "http://localhost:8080/api/v1/folders/all?page=1&pageSize=10", "host": ["http://localhost:8080"], "path": ["api", "v1", "folders", "all"], "query": [{ "key": "page", "value": "1" }, { "key": "pageSize", "value": "10" }] }
+          }
+        },
+        {
+          "name": "POST /api/v1/folders",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"My Folder\",\n  \"description\": \"Folder description\",\n  \"category\": \"WORK\"\n}" },
+            "url": { "raw": "http://localhost:8080/api/v1/folders", "host": ["http://localhost:8080"], "path": ["api", "v1", "folders"] }
+          }
+        },
+        {
+          "name": "GET /api/v1/folders/search",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "http://localhost:8080/api/v1/folders/search?query=test", "host": ["http://localhost:8080"], "path": ["api", "v1", "folders", "search"], "query": [{ "key": "query", "value": "test" }] }
+          }
+        },
+        {
+          "name": "GET /api/v1/tabs",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:8080/api/v1/tabs?page=1&pageSize=10", "host": ["http://localhost:8080"], "path": ["api", "v1", "tabs"], "query": [{ "key": "page", "value": "1" }, { "key": "pageSize", "value": "10" }] }
+          }
+        },
+        {
+          "name": "POST /api/v1/tabs",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"My Tab\",\n  \"url\": \"https://example.com\",\n  \"description\": \"Tab description\",\n  \"tags\": [\"learning\", \"japanese\"]\n}" },
+            "url": { "raw": "http://localhost:8080/api/v1/tabs", "host": ["http://localhost:8080"], "path": ["api", "v1", "tabs"] }
+          }
+        },
+        {
+          "name": "POST /api/v1/tabs/:id/save",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "http://localhost:8080/api/v1/tabs/1/save", "host": ["http://localhost:8080"], "path": ["api", "v1", "tabs", ":id", "save"], "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/tabs/:id/unsave",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "http://localhost:8080/api/v1/tabs/1/unsave", "host": ["http://localhost:8080"], "path": ["api", "v1", "tabs", ":id", "unsave"], "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "GET /api/v1/tabs/saved",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "http://localhost:8080/api/v1/tabs/saved", "host": ["http://localhost:8080"], "path": ["api", "v1", "tabs", "saved"] }
+          }
+        },
+        {
+          "name": "GET /api/v1/tabs/recent",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "http://localhost:8080/api/v1/tabs/recent", "host": ["http://localhost:8080"], "path": ["api", "v1", "tabs", "recent"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deck",
+      "item": [
+        {
+          "name": "GET /api/v1/deck/all",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/deck/all?offset=1&limit=10", "host": ["{{base_url}}"], "path": ["api", "v1", "deck", "all"], "query": [{ "key": "offset", "value": "1" }, { "key": "limit", "value": "10" }] }
+          }
+        },
+        {
+          "name": "GET /api/v1/deck/search",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/deck/search?query=japanese", "host": ["{{base_url}}"], "path": ["api", "v1", "deck", "search"], "query": [{ "key": "query", "value": "japanese" }] }
+          }
+        },
+        {
+          "name": "GET /api/v1/deck/featured",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/deck/featured", "host": ["{{base_url}}"], "path": ["api", "v1", "deck", "featured"] }
+          }
+        },
+        {
+          "name": "GET /api/v1/deck/flashcard/:id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/deck/flashcard/1", "host": ["{{base_url}}"], "path": ["api", "v1", "deck", "flashcard", ":id"], "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "GET /api/v1/deck/flashcard/deck/:deck_id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/deck/flashcard/deck/45", "host": ["{{base_url}}"], "path": ["api", "v1", "deck", "flashcard", "deck", ":deck_id"], "variable": [{ "key": "deck_id", "value": "45" }] }
+          }
+        },
+        {
+          "name": "GET /api/v1/deck/flashcard/search",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/deck/flashcard/search?query=日本", "host": ["{{base_url}}"], "path": ["api", "v1", "deck", "flashcard", "search"], "query": [{ "key": "query", "value": "日本" }] }
+          }
+        },
+        {
+          "name": "POST /api/v1/deck (create)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"My New Deck\",\n  \"description\": \"Deck description\",\n  \"category\": \"VOCABULARY\",\n  \"level\": \"N5\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/deck", "host": ["{{base_url}}"], "path": ["api", "v1", "deck"] }
+          }
+        },
+        {
+          "name": "POST /api/v1/deck/flashcard (create)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"deck_id\": 1,\n  \"japanese\": \"猫\",\n  \"romaji\": \"neko\",\n  \"meaning\": \"Cat\",\n  \"type\": \"VOCABULARY\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/deck/flashcard", "host": ["{{base_url}}"], "path": ["api", "v1", "deck", "flashcard"] }
+          }
+        },
+        {
+          "name": "POST /api/v1/deck/progress/record",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"user_id\": 1,\n  \"flashcard_id\": 1,\n  \"is_correct\": true,\n  \"proficiency\": 3\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/deck/progress/record", "host": ["{{base_url}}"], "path": ["api", "v1", "deck", "progress", "record"] }
+          }
+        },
+        {
+          "name": "GET /api/v1/deck/progress/user/:user_id/due",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/deck/progress/user/1/due", "host": ["{{base_url}}"], "path": ["api", "v1", "deck", "progress", "user", ":user_id", "due"], "variable": [{ "key": "user_id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "GET /api/v1/deck/saved (PLANNED — expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/deck/saved", "host": ["{{base_url}}"], "path": ["api", "v1", "deck", "saved"] }
+          }
+        },
+        {
+          "name": "GET /api/v1/deck/recent (PLANNED — expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "{{base_url}}/api/v1/deck/recent", "host": ["{{base_url}}"], "path": ["api", "v1", "deck", "recent"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Post",
+      "item": [
+        {
+          "name": "GET /posts (list)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:3003/posts?page=1&page_size=10", "host": ["http://localhost:3003"], "path": ["posts"], "query": [{ "key": "page", "value": "1" }, { "key": "page_size", "value": "10" }] }
+          }
+        },
+        {
+          "name": "GET /posts/featured",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:3003/posts/featured?limit=5", "host": ["http://localhost:3003"], "path": ["posts", "featured"], "query": [{ "key": "limit", "value": "5" }] }
+          }
+        },
+        {
+          "name": "GET /posts/:id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:3003/posts/1", "host": ["http://localhost:3003"], "path": ["posts", ":id"], "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "GET /posts/search",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "http://localhost:3003/posts/search?query=go", "host": ["http://localhost:3003"], "path": ["posts", "search"], "query": [{ "key": "query", "value": "go" }] }
+          }
+        },
+        {
+          "name": "POST /posts (create)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"My Post\",\n  \"content\": \"Post content\",\n  \"tags\": [\"life\", \"learning\"]\n}" },
+            "url": { "raw": "http://localhost:3003/posts", "host": ["http://localhost:3003"], "path": ["posts"] }
+          }
+        },
+        {
+          "name": "PUT /posts/:id (update)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Updated title\",\n  \"content\": \"Updated content\"\n}" },
+            "url": { "raw": "http://localhost:3003/posts/1", "host": ["http://localhost:3003"], "path": ["posts", ":id"], "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "PUT /posts/:id/featured (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"featured\": true\n}" },
+            "url": { "raw": "http://localhost:3003/posts/1/featured", "host": ["http://localhost:3003"], "path": ["posts", ":id", "featured"], "variable": [{ "key": "id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "DELETE /posts/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "url": { "raw": "http://localhost:3003/posts/1", "host": ["http://localhost:3003"], "path": ["posts", ":id"], "variable": [{ "key": "id", "value": "1" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "App Version",
+      "item": [
+        {
+          "name": "GET /api/v1/app-version/latest",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/app-version/latest", "host": ["{{base_url}}"], "path": ["api", "v1", "app-version", "latest"] }
+          }
+        },
+        {
+          "name": "GET /api/v1/app-version/all",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/app-version/all?limit=10&offset=0", "host": ["{{base_url}}"], "path": ["api", "v1", "app-version", "all"], "query": [{ "key": "limit", "value": "10" }, { "key": "offset", "value": "0" }] }
+          }
+        },
+        {
+          "name": "POST /api/v1/app-version (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"v1.0.0\",\n  \"description\": \"Initial release\",\n  \"version\": \"1.0.0\",\n  \"is_current\": false,\n  \"is_force\": false\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/app-version", "host": ["{{base_url}}"], "path": ["api", "v1", "app-version"] }
+          }
+        },
+        {
+          "name": "PUT /api/v1/app-version?id=1 (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"v1.0.1\",\n  \"description\": \"Bug fixes\",\n  \"version\": \"1.0.1\",\n  \"is_current\": true,\n  \"is_force\": false\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/app-version?id=1", "host": ["{{base_url}}"], "path": ["api", "v1", "app-version"], "query": [{ "key": "id", "value": "1" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "File",
+      "item": [
+        {
+          "name": "GET /api/v1/file/download/:filename (public)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{file_url}}/api/v1/file/download/826c7d5b-e231-4be1-8bc9-5db6e3ecec46_thumbnail", "host": ["{{file_url}}"], "path": ["api", "v1", "file", "download", ":filename"], "variable": [{ "key": "filename", "value": "826c7d5b-e231-4be1-8bc9-5db6e3ecec46_thumbnail" }] }
+          }
+        },
+        {
+          "name": "POST /api/v1/file/upload (JWT)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{auth_token}}" }],
+            "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file", "src": "/path/to/image.png" }] },
+            "url": { "raw": "{{file_url}}/api/v1/file/upload", "host": ["{{file_url}}"], "path": ["api", "v1", "file", "upload"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gateway",
+      "item": [
+        {
+          "name": "HEAD /status",
+          "request": {
+            "method": "HEAD",
+            "url": { "raw": "{{base_url}}/status", "host": ["{{base_url}}"], "path": ["status"] }
+          }
+        },
+        {
+          "name": "GET /@{username} (profile page / SSR)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/@test", "host": ["{{base_url}}"], "path": ["@test"] }
+          }
+        },
+        {
+          "name": "GET /api/v1/unknown (404)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/definitely-not-a-service", "host": ["{{base_url}}"], "path": ["api", "v1", "definitely-not-a-service"] }
+          }
+        }
+      ]
+    }
+  ]
+}

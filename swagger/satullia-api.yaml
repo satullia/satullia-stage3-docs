@@ -1,0 +1,2308 @@
+openapi: 3.0.3
+info:
+  title: Satullia API
+  description: |
+    Satullia backend REST API.
+
+    This document describes every HTTP endpoint exposed by the Satullia micro-services
+    (Auth, Profile, Access Control, Folder/Tab, Deck, Post, App-Version and File).
+
+    Two public domains are used in the deployed (staging/prod) environment:
+
+      * `https://api-satullia.danials.space`     – gateway + routed services (auth, profile, access-control, post, deck, app-version)
+      * `https://file-satullia.danials.space`     – file service (upload/download)
+
+    A gateway reverse-proxy (gorilla/mux in `gateway-service`) currently forwards:
+      `/api/v1/profile*`        -> profile-service
+      `/api/v1/auth*`           -> auth-service
+      `/api/v1/access-control*` -> access-control-service
+      `/api/v1/post*`           -> post-service
+      `/api/v1/deck*`           -> deck-service
+      `/api/v1/app-version*`    -> app-version-service
+
+    The **folder/tab** endpoints of the folder-service are NOT routed through the gateway in
+    the current deployment – call the service directly until the gateway is extended.
+
+    ## Authentication
+    Most endpoints require a JWT access token. Send it as:
+
+      `Authorization: Bearer <access_token>`
+
+    Obtain a token from `POST /api/v1/auth/login` (or `verify-code` / `refresh-token`).
+    Access tokens are HS256 JWTs signed with the shared server secret and are valid for
+    30 days; refresh tokens are valid for 90 days.
+
+  version: 1.0.0
+  contact:
+    name: Satullia Backend Team
+servers:
+  - url: https://api-satullia.danials.space
+    description: Deployed (staging / prod) gateway
+  - url: https://file-satullia.danials.space
+    description: Deployed file service
+  - url: http://localhost:8080
+    description: Local gateway
+  - url: http://localhost:3006
+    description: Local deck-service (direct)
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Registration, login, email verification and token refresh
+  - name: Profile
+    description: User profile read / update
+  - name: Access Control
+    description: User privilege levels (admin manage)
+  - name: Folders
+    description: Folder (deck of tabs) management, featured folders
+  - name: Tabs
+    description: Tab management, save/unsave, recent + saved lists
+  - name: Deck
+    description: Japanese-learning decks, flashcards and spaced-repetition progress
+  - name: Post
+    description: Blog / community posts
+  - name: App Version
+    description: App version announcements and force-update flags (admin manage)
+  - name: File
+    description: Image / file upload and download (MinIO backed)
+
+paths:
+  # ---------------------------------------------------------------------------
+  # Auth service
+  # ---------------------------------------------------------------------------
+  /api/v1/auth/signup:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      description: Creates a user + profile, generates and e-mails a 6-digit verification code.
+        Optional fields (fullname, username, bio, image_url) are nullable.
+      operationId: signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+            example:
+              email: user@example.com
+              password: S3cureP@ssw0rd
+              signup_method: APP
+              fullname: John Doe
+              username: johndoe
+              bio: Hello world
+              image_url: ""
+      responses:
+        '201':
+          description: User registered successfully (verification e-mail sent)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: User successfully registered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and get JWT tokens
+      description: Validates credentials, requires the account to be verified, returns an
+        access token (30 days) and refresh token (90 days).
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: user@example.com
+              password: S3cureP@ssw0rd
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+              example:
+                access_token: eyJhbGciOiJIUzI1NiIs...
+                refresh_token: eyJhbGciOiJIUzI1NiIs...
+        '400':
+          description: Missing fields or invalid email/password
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: User email not verified yet
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/verify-code:
+    post:
+      tags: [Auth]
+      summary: Verify the e-mail verification code
+      description: Marks the user verified and returns JWT tokens.
+      operationId: verifyCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationRequest'
+            example:
+              email: user@example.com
+              code: '123456'
+      responses:
+        '200':
+          description: Verification succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400':
+          description: Invalid, expired or missing verification code
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/auth/resend-verify-code:
+    post:
+      tags: [Auth]
+      summary: Resend the verification code e-mail
+      operationId: resendVerifyCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+            example:
+              email: user@example.com
+      responses:
+        '200':
+          description: Code resent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: Verification code resent
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Refresh the access token
+      description: Returns a new access token using a valid refresh token.
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+            example:
+              refresh_token: eyJhbGciOiJIUzI1NiIs...
+      responses:
+        '200':
+          description: New access token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token]
+                properties:
+                  access_token:
+                    type: string
+              example:
+                access_token: eyJhbGciOiJIUzI1NiIs...
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid refresh token
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------------------------------------------------------------------------
+  # Profile service
+  # ---------------------------------------------------------------------------
+  /api/v1/profile:
+    get:
+      tags: [Profile]
+      summary: Get a user profile
+      description: Either look up a public profile by `?username=`, or (with a valid token
+        and no username) return the authenticated user's own profile.
+      operationId: getProfile
+      parameters:
+        - name: username
+          in: query
+          required: false
+          description: Look up a public profile by username
+          schema:
+            type: string
+            example: johndoe
+      security: []
+      responses:
+        '200':
+          description: Profile found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+              example:
+                id: 1
+                user_id: 1
+                username: johndoe
+                full_name: John Doe
+                bio: Hello
+                image_url: ""
+                created_at: '2025-03-26T06:04:59.394518Z'
+                updated_at: '2025-03-26T06:04:59.394518Z'
+                privilege_level:
+                  - ADMIN
+        '400':
+          description: Missing username and token
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/profile/update:
+    post:
+      tags: [Profile]
+      summary: Update the authenticated user's profile
+      description: All fields are optional. Only uses the value when it is provided (bio and
+        image_url are nullable pointers).
+      operationId: updateProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+            example:
+              full_name: John Doe
+              bio: Updated bio
+              image_url: 826c7d5b-e231-4be1-8bc9-5db6e3ecec46
+      responses:
+        '200':
+          description: Updated profile (model.Profile object)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # Access control service
+  # ---------------------------------------------------------------------------
+  /api/v1/access-control/privileges:
+    get:
+      tags: [Access Control]
+      summary: Get the authenticated user's privilege levels
+      operationId: getMyPrivileges
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User privileges (empty array when no privileges)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserPrivilege'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [Access Control]
+      summary: Update a user's privilege levels (admin only)
+      operationId: updatePrivileges
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrivilegesUpdateRequest'
+            example:
+              user_id: 2
+              privilege_levels:
+                - DEVELOPER
+                - QA
+      responses:
+        '200':
+          description: Privileges updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: Privileges updated successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not an admin
+          $ref: '#/components/responses/Forbidden'
+
+  # ---------------------------------------------------------------------------
+  # Folder service – folders
+  # ---------------------------------------------------------------------------
+  /api/v1/folders/all:
+    get:
+      tags: [Folders]
+      summary: Get all folders (paginated)
+      description: Query params `page` (default 1) and `pageSize` (default 10).
+      operationId: getFolders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, default: 10, maximum: 100 }
+      responses:
+        '200':
+          description: Paginated folders
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [folders, pagination]
+                properties:
+                  folders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Folder'
+                  pagination:
+                    $ref: '#/components/schemas/FolderPagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/folders/{id}:
+    get:
+      tags: [Folders]
+      summary: Get a folder by ID
+      operationId: getFolderById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Folders]
+      summary: Delete a folder (owner only)
+      operationId: deleteFolder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/folders:
+    post:
+      tags: [Folders]
+      summary: Create a folder
+      description: Accepts a Folder body. `cover_image_id` defaults to
+        `default_folder_cover.jpg`, `is_active` is forced to true and `tab_count` to 0.
+      operationId: insertFolder
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Folder'
+            example:
+              title: My collection
+              description: Tech links
+              category: WORK
+              cover_image_id: 826c7d5b-e231-4be1-8bc9-5db6e3ecec46
+              tags: [go, backend]
+              color: '#8BC34A'
+      responses:
+        '201':
+          description: Folder created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, folder]
+                properties:
+                  message:
+                    type: string
+                  folder:
+                    $ref: '#/components/schemas/Folder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [Folders]
+      summary: Update a folder
+      description: Body must include the folder `id`.
+      operationId: updateFolder
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Folder'
+            example:
+              id: 1
+              title: Updated title
+              description: Updated
+      responses:
+        '200':
+          description: Folder updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, folder]
+                properties:
+                  message:
+                    type: string
+                  folder:
+                    $ref: '#/components/schemas/Folder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/folders/search:
+    get:
+      tags: [Folders]
+      summary: Search folders by title / description
+      operationId: searchFolders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Matching folders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Folder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/folders/featured/all:
+    get:
+      tags: [Folders]
+      summary: Get all featured folders (public)
+      description: Uses the featured-folder repository in the folder-service. Note the
+        deployed gateway currently returns 404 for this path (not routed yet).
+      operationId: getFeaturedFolders
+      security: []
+      responses:
+        '200':
+          description: Featured folders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeaturedFolder'
+
+  /api/v1/folders/featured/{id}:
+    get:
+      tags: [Folders]
+      summary: Check if a folder is featured (public)
+      operationId: isFolderFeatured
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Featured status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [is_featured]
+                properties:
+                  is_featured:
+                    type: boolean
+    post:
+      tags: [Folders]
+      summary: Add a folder to featured (auth)
+      description: Optional `?order=` query param sets the display order.
+      operationId: addFeaturedFolder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: order
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Folders]
+      summary: Remove a folder from featured (auth)
+      operationId: removeFeaturedFolder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  # ---------------------------------------------------------------------------
+  # Folder service – tabs
+  # ---------------------------------------------------------------------------
+  /api/v1/tabs:
+    get:
+      tags: [Tabs]
+      summary: Get all tabs (paginated)
+      description: Query params `page` (default 1) and `pageSize` (default 10). Every tab
+        carries an `is_saved` flag (computed when a token is supplied).
+      operationId: getAllTabs
+      security: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, default: 10 }
+      responses:
+        '200':
+          description: Paginated tabs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TabWithStatus'
+                  pagination:
+                    $ref: '#/components/schemas/TabPagination'
+    post:
+      tags: [Tabs]
+      summary: Create a tab
+      description: Requires `url` and `title`. May include notes and file attachments.
+      operationId: insertTab
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertTabRequest'
+            example:
+              title: OpenCode
+              description: CLI
+              url: https://opencode.ai
+              folder_id: 1
+              tags: [cli, ai]
+              notes:
+                - content: first note
+              files:
+                - uploaded_file_id: 826c7d5b-e231-4be1-8bc9-5db6e3ecec46
+      responses:
+        '201':
+          description: Tab created (complete tab incl. notes/files)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tab'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [Tabs]
+      summary: Update a tab
+      description: The tab ID is read from the `?id=` query parameter (not the body).
+        Notes and files passed with an `id` are updated, others are created.
+      operationId: editTab
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          description: Tab ID to edit
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertTabRequest'
+            example:
+              title: Updated title
+              url: https://opencode.ai
+      responses:
+        '200':
+          description: Tab updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tab'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tabs/{id}:
+    get:
+      tags: [Tabs]
+      summary: Get a tab by ID
+      description: Includes `is_saved`. When authenticated, the tab is recorded as recently
+        viewed.
+      operationId: getTabById
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Tab with status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TabWithStatus'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Tabs]
+      summary: Delete a tab
+      operationId: deleteTab
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tabs/folder/{folder_id}:
+    get:
+      tags: [Tabs]
+      summary: Get all tabs inside a folder
+      operationId: tabsInFolder
+      security: []
+      parameters:
+        - name: folder_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Tabs (each with is_saved)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TabWithStatus'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tabs/search:
+    get:
+      tags: [Tabs]
+      summary: Search tabs
+      description: Query param is `q` (search query), optional `page` and `pageSize`.
+      operationId: searchTabs
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, default: 10 }
+      responses:
+        '200':
+          description: Matching tabs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TabWithStatus'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tabs/{id}/save:
+    post:
+      tags: [Tabs]
+      summary: Save a tab for the authenticated user
+      operationId: saveTab
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message, tab]
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  tab:
+                    $ref: '#/components/schemas/Tab'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tabs/{id}/unsave:
+    delete:
+      tags: [Tabs]
+      summary: Unsave a tab
+      operationId: unsaveTab
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Un-saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  tab:
+                    $ref: '#/components/schemas/Tab'
+
+  /api/v1/tabs/saved:
+    get:
+      tags: [Tabs]
+      summary: Get the authenticated user's saved tabs
+      operationId: getUserSavedTabs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Saved tabs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    tab_id: { type: integer }
+                    tab:
+                      $ref: '#/components/schemas/Tab'
+                    is_saved: { type: boolean, example: true }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/tabs/recent:
+    get:
+      tags: [Tabs]
+      summary: Get the authenticated user's recently viewed tabs
+      operationId: getUserRecentTabs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Recent tabs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    tab_id: { type: integer }
+                    tab:
+                      $ref: '#/components/schemas/Tab'
+                    is_saved: { type: boolean }
+                    last_viewed_at: { type: string, format: date-time }
+
+  # ---------------------------------------------------------------------------
+  # Deck service
+  # ---------------------------------------------------------------------------
+  /api/v1/deck:
+    post:
+      tags: [Deck]
+      summary: Create a deck (logged-in users)
+      description: Requires a Bearer token. Deck `category` defaults to VOCABULARY,
+        `level` to N5, `card_count` to 0, `difficulty` to 1.
+      operationId: createDeck
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Deck'
+            example:
+              title: Basic Greetings
+              description: Essential Japanese greetings
+              category: VOCABULARY
+              level: N5
+              cover_image_id: 826c7d5b-e231-4be1-8bc9-5db6e3ecec46
+              tags: [greetings]
+              color: '#FF5722'
+              difficulty: 1
+      responses:
+        '201':
+          description: Deck created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deck'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [Deck]
+      summary: Update a deck
+      description: Body must include the deck `id`. Requires a Bearer token.
+      operationId: updateDeck
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Deck'
+            example:
+              id: 50
+              title: Updated title
+              difficulty: 3
+      responses:
+        '200':
+          description: Deck updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deck'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/deck/all:
+    get:
+      tags: [Deck]
+      summary: Get all decks (paginated)
+      description: Uses `offset` + `limit` (1-based offset in the deployed version).
+        Each deck includes an `is_saved` flag when a token is supplied.
+      operationId: getAllDecks
+      security: []
+      parameters:
+        - name: offset
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10 }
+      responses:
+        '200':
+          description: Paginated decks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeckPaginated'
+              example:
+                data:
+                  - id: 50
+                    title: Common Places
+                    description: Japanese vocabulary for common locations
+                    category: VOCABULARY
+                    level: N5
+                    image_ids: ['826c7d5b-e231-4be1-8bc9-5db6e3ecec46']
+                    cover_image_id: 826c7d5b-e231-4be1-8bc9-5db6e3ecec46
+                    is_active: true
+                    inserted_by: 1
+                    card_count: 2
+                    difficulty: 2
+                    tags: [place]
+                    color: '#8BC34A'
+                    created_at: '2025-03-26T06:04:59.394518Z'
+                    updated_at: '2025-03-26T20:04:59.394521Z'
+                    is_saved: false
+                pagination:
+                  limit: 10
+                  offset: 1
+                  total: 17
+
+  /api/v1/deck/search:
+    get:
+      tags: [Deck]
+      summary: Search decks
+      operationId: searchDecks
+      security: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Matching decks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Deck'
+
+  /api/v1/deck/featured:
+    get:
+      tags: [Deck]
+      summary: Get featured decks (public)
+      operationId: getFeaturedDecks
+      security: []
+      responses:
+        '200':
+          description: Featured decks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeaturedDeckList'
+              example:
+                success: true
+                message: Featured decks retrieved successfully
+                data:
+                  - id: 1
+                    deck_id: 51
+                    display_order: 1
+                    added_at: '2025-03-26T21:04:59.520682Z'
+                    deck:
+                      id: 51
+                      title: Everyday Objects
+                      description: Terms for common items
+                      category: VOCABULARY
+                      level: N5
+                      cover_image_id: 826c7d5b-e231-4be1-8bc9-5db6e3ecec46
+                      is_active: true
+                      inserted_by: 1
+                      card_count: 2
+                      difficulty: 1
+                      color: '#9E9E9E'
+                      created_at: '2025-03-26T11:04:59.394525Z'
+                      updated_at: '2025-03-26T21:04:59.394528Z'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/deck/{id}/activate:
+    post:
+      tags: [Deck]
+      summary: Activate a deck
+      operationId: activateDeck
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/deck/{id}/deactivate:
+    post:
+      tags: [Deck]
+      summary: Deactivate a deck
+      operationId: deactivateDeck
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Deactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/deck/flashcard:
+    post:
+      tags: [Deck]
+      summary: Create a flashcard (logged-in users)
+      operationId: createFlashcard
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Flashcard'
+            example:
+              deck_id: 50
+              japanese: 頭
+              furigana: あたま
+              romaji: atama
+              meaning: Head
+              example: 頭が痛いです。
+              example_meaning: I have a headache.
+              type: VOCABULARY
+              level: N5
+              writing_system: KANJI
+              tags: [body, health]
+      responses:
+        '201':
+          description: Flashcard created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Flashcard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [Deck]
+      summary: Update a flashcard
+      description: Body must include the flashcard `id`.
+      operationId: updateFlashcard
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Flashcard'
+            example:
+              id: 5
+              meaning: Head (updated)
+      responses:
+        '200':
+          description: Flashcard updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Flashcard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/deck/flashcard/{id}:
+    get:
+      tags: [Deck]
+      summary: Get a flashcard by ID
+      operationId: getFlashcard
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Flashcard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Flashcard'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/deck/flashcard/deck/{deck_id}:
+    get:
+      tags: [Deck]
+      summary: Get all flashcards in a deck
+      operationId: getDeckFlashcards
+      security: []
+      parameters:
+        - name: deck_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Flashcards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Flashcard'
+
+  /api/v1/deck/flashcard/search:
+    get:
+      tags: [Deck]
+      summary: Search flashcards
+      operationId: searchFlashcards
+      security: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Matching flashcards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Flashcard'
+
+  /api/v1/deck/progress/record:
+    post:
+      tags: [Deck]
+      summary: Record a flashcard review result (spaced repetition)
+      description: Records a single review result (is_correct + proficiency) for a user/flashcard.
+      operationId: recordProgress
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgressRecord'
+            example:
+              user_id: 1
+              flashcard_id: 5
+              is_correct: true
+              proficiency: 3
+      responses:
+        '200':
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgressRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/deck/progress/user/{user_id}/due:
+    get:
+      tags: [Deck]
+      summary: Get the flashcards due for review for a user
+      description: Returns flashcards scheduled for review based on spaced-repetition state.
+      operationId: getDueFlashcards
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Due flashcards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Flashcard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/deck/progress/user/{user_id}/deck/{deck_id}:
+    get:
+      tags: [Deck]
+      summary: Get a user's progress in a specific deck
+      operationId: getDeckProgress
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: deck_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Deck progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeckProgress'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Planned / expected endpoints (saved & recent decks).
+  # The deck-service is shipped with `saved_decks` and `recent_decks` tables; these routes were
+  # NOT found in the currently deployed deck-service binary and returned HTTP 404 at the time of
+  # documentation. Documented here so the front-end team can plan for them.
+  /api/v1/deck/saved:
+    get:
+      tags: [Deck]
+      summary: Get the authenticated user's saved decks  [PLANNED]
+      description: "Currently NOT implemented in the deployed service (HTTP 404). The
+        `saved_decks` table exists. Planned for a future release."
+      operationId: getSavedDecks
+      security:
+        - bearerAuth: []
+      responses:
+        '404':
+          description: Route not implemented yet
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/deck/recent:
+    get:
+      tags: [Deck]
+      summary: Get the authenticated user's recently viewed decks  [PLANNED]
+      description: "Currently NOT implemented in the deployed service (HTTP 404). The
+        `recent_decks` table exists. Planned for a future release."
+      operationId: getRecentDecks
+      security:
+        - bearerAuth: []
+      responses:
+        '404':
+          description: Route not implemented yet
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # Post service
+  # ---------------------------------------------------------------------------
+  # NOTE: The post-service registers its routes *without* the /api/v1 prefix
+  # (see post-service/routes/routes.go). The gateway forwards /api/v1/post* unchanged,
+  # so through the gateway these are currently unreachable until the prefix is aligned.
+  /posts:
+    get:
+      tags: [Post]
+      summary: Get all posts (paginated)
+      description: Optional query filters `category_id`, `featured` (true/false), `page`,
+        `page_size` (default 10, max 100).
+      operationId: getAllPosts
+      security: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: page_size
+          in: query
+          schema: { type: integer, default: 10 }
+        - name: category_id
+          in: query
+          schema: { type: integer }
+        - name: featured
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Paginated posts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [posts, pagination]
+                properties:
+                  posts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Post'
+                  pagination:
+                    type: object
+                    properties:
+                      current_page: { type: integer }
+                      page_size: { type: integer }
+                      total_items: { type: integer }
+                      total_pages: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags: [Post]
+      summary: Create a post
+      description: Requires a Bearer token. `title` and `content` are required.
+      operationId: createPost
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Post'
+            example:
+              title: My first post
+              content: Hello world
+              category_id: 1
+              tags: [intro]
+      responses:
+        '201':
+          description: Post created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, post]
+                properties:
+                  message: { type: string }
+                  post:
+                    $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /posts/{id}:
+    get:
+      tags: [Post]
+      summary: Get a post by ID
+      operationId: getPost
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Post]
+      summary: Update a post (author only)
+      operationId: updatePost
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Post'
+            example:
+              title: Updated title
+              content: Updated content
+      responses:
+        '200':
+          description: Post updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  post:
+                    $ref: '#/components/schemas/Post'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Post]
+      summary: Delete a post (author only)
+      operationId: deletePost
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /posts/featured:
+    get:
+      tags: [Post]
+      summary: Get featured posts
+      description: Optional `limit` query param (default 10).
+      operationId: getFeaturedPosts
+      security: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10 }
+      responses:
+        '200':
+          description: Featured posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Post'
+
+  /posts/{id}/featured:
+    put:
+      tags: [Post]
+      summary: Set / unset a post as featured
+      operationId: setFeatured
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [featured]
+              properties:
+                featured:
+                  type: boolean
+      responses:
+        '200':
+          description: Featured status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /posts/search:
+    get:
+      tags: [Post]
+      summary: Search posts by title / content / author
+      operationId: searchPosts
+      security: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: page_size
+          in: query
+          schema: { type: integer, default: 10 }
+      responses:
+        '200':
+          description: Matching posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Post'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # ---------------------------------------------------------------------------
+  # App-version service
+  # ---------------------------------------------------------------------------
+  /api/v1/app-version/latest:
+    get:
+      tags: [App Version]
+      summary: Get the current (latest) app version (public)
+      operationId: getLatestVersion
+      security: []
+      responses:
+        '200':
+          description: Current app version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppVersion'
+              example:
+                id: 1
+                is_current: true
+                is_force: true
+                title: first version
+                description: ""
+                version: 1.0.1
+                created_at: '2024-10-28T06:24:01.113071Z'
+                updated_at: '2024-10-28T06:24:01.113071Z'
+
+  /api/v1/app-version/all:
+    get:
+      tags: [App Version]
+      summary: Get all app versions (paginated, public)
+      operationId: getAllVersions
+      security: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: App versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppVersion'
+
+  /api/v1/app-version:
+    post:
+      tags: [App Version]
+      summary: Create an app version (admin only)
+      description: Creating a version calls `set_all_current=false` first, then inserts.
+      operationId: insertVersion
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppVersionRequest'
+            example:
+              title: Release 2
+              description: New features
+              version: 1.1.0
+              is_current: true
+              is_force: false
+      responses:
+        '201':
+          description: Version created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppVersion'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [App Version]
+      summary: Update an app version (admin only)
+      description: The version ID is taken from the `?id=` query parameter.
+      operationId: updateVersion
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppVersionRequest'
+            example:
+              title: Release 2 updated
+              description: More details
+              version: 1.1.1
+              is_current: true
+              is_force: true
+      responses:
+        '200':
+          description: Version updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppVersion'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------------------------------------------------------------------------
+  # File service
+  # ---------------------------------------------------------------------------
+  /api/v1/file/upload:
+    post:
+      tags: [File]
+      summary: Upload an image
+      description: |
+        Multipart/form-data upload with a field named `file`. The service decodes the image,
+        stores the original and generates `_preview` (1000px), `_thumbnail` (400px) and
+        `_icon` (100px) JPEG variants in MinIO (`satullia` bucket). The base filename is a
+        generated UUID used to build subsequent variant filenames, e.g.
+        `826c7d5b-..._thumbnail`.
+      operationId: uploadFile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Uploaded file record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadedFile'
+        '400':
+          description: Missing file or invalid image
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/file/download/{filename}:
+    get:
+      tags: [File]
+      summary: Download a file / image variant
+      description: Streams the stored object. Content-Type and Content-Length are set from
+        MinIO metadata. Public – no authentication required.
+      operationId: downloadFile
+      security: []
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          description: e.g. `826c7d5b-e231-4be1-8bc9-5db6e3ecec46` or
+            `826c7d5b-e231-4be1-8bc9-5db6e3ecec46_thumbnail`
+          schema: { type: string }
+      responses:
+        '200':
+          description: File stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ---------------------------------------------------------------------------
+  # Gateway service convenience endpoints
+  # ---------------------------------------------------------------------------
+  /status:
+    head:
+      tags: [App Version]
+      summary: Gateway health check (HEAD)
+      description: Returns 200 when the gateway is up.
+      operationId: gatewayStatus
+      security: []
+      responses:
+        '200':
+          description: Healthy
+        '405':
+          description: Method not allowed (only HEAD supported)
+
+  /@{username}:
+    get:
+      tags: [App Version]
+      summary: Server-side rendered profile page
+      description: Renders an HTML profile page for the given username (SEO).
+      operationId: ssrProfile
+      security: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: Profile username prefixed with @
+          schema: { type: string }
+      responses:
+        '200':
+          description: HTML page (text/html)
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: HS256 JWT access token from POST /api/v1/auth/login.
+  responses:
+    BadRequest:
+      description: Bad request – missing or invalid payload/params
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing, invalid or expired access token / not verified
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Authenticated but not allowed to perform this action
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found (or route not implemented)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    # ---------- auth ----------
+    SignupRequest:
+      type: object
+      required: [email, password, signup_method]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+        signup_method:
+          $ref: '#/components/schemas/SignupMethod'
+        fullname:
+          type: string
+        username:
+          type: string
+        bio:
+          type: string
+        image_url:
+          type: string
+    SignupMethod:
+      type: string
+      enum: [APP, GOOGLE, APPLE, WHATSAPP]
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    VerificationRequest:
+      type: object
+      required: [email, code]
+      properties:
+        email: { type: string, format: email }
+        code: { type: string, example: '123456' }
+    ResendVerificationRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+    TokenPair:
+      type: object
+      required: [access_token, refresh_token]
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          oneOf:
+            - type: object
+              required: [code, message]
+              properties:
+                code: { type: string }
+                message: { type: string }
+            - type: string
+              description: Simpler error string used by some handlers (field is a JSON string)
+
+    # ---------- profile ----------
+    Profile:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        username: { type: string }
+        full_name: { type: string }
+        bio: { type: string }
+        image_url: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        privilege_level:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrivilegeLevel'
+    UpdateProfileRequest:
+      type: object
+      properties:
+        full_name: { type: string }
+        bio: { type: string }
+        image_url: { type: string }
+
+    # ---------- access control ----------
+    PrivilegeLevel:
+      type: string
+      enum: [ADMIN, SUPPORT, QA, DEMO, DEVELOPER]
+    UserPrivilege:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        privilege_level:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrivilegeLevel'
+        given_by: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time }
+    PrivilegesUpdateRequest:
+      type: object
+      required: [user_id, privilege_levels]
+      properties:
+        user_id: { type: integer }
+        privilege_levels:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrivilegeLevel'
+
+    # ---------- folders ----------
+    Folder:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        category:
+          type: string
+          enum: [WORK, PERSONAL, EDUCATION, OTHER]
+        level: { type: string }
+        image_ids:
+          type: array
+          items: { type: string }
+        cover_image_id: { type: string }
+        is_active: { type: boolean }
+        inserted_by: { type: integer }
+        tab_count: { type: integer }
+        difficulty: { type: integer }
+        tags:
+          type: array
+          items: { type: string }
+        color: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    FolderPagination:
+      type: object
+      properties:
+        total_count: { type: integer }
+        total_pages: { type: integer }
+        current_page: { type: integer }
+        page_size: { type: integer }
+        has_next_page: { type: boolean }
+        has_previous_page: { type: boolean }
+    FeaturedFolder:
+      type: object
+      description: Featured folder row (featured_folders table)
+      properties:
+        id: { type: integer }
+        folder_id: { type: integer }
+        display_order: { type: integer }
+        added_at: { type: string, format: date-time }
+        folder:
+          $ref: '#/components/schemas/Folder'
+
+    # ---------- tabs ----------
+    InsertTabRequest:
+      type: object
+      required: [title, url]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        url: { type: string, format: uri }
+        folder_id: { type: integer }
+        tags:
+          type: array
+          items: { type: string }
+        notes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TabNote'
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/TabFile'
+        deleted_at: { type: string, format: date-time }
+    Tab:
+      type: object
+      properties:
+        id: { type: integer }
+        folder_id: { type: integer }
+        url: { type: string }
+        title: { type: string }
+        description: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        inserted_by: { type: integer }
+        deleted_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        notes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TabNote'
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/TabFile'
+    TabWithStatus:
+      allOf:
+        - $ref: '#/components/schemas/Tab'
+        - type: object
+          properties:
+            is_saved: { type: boolean }
+    TabNote:
+      type: object
+      properties:
+        id: { type: integer }
+        tab_id: { type: integer }
+        content: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    TabFile:
+      type: object
+      properties:
+        id: { type: integer }
+        tab_id: { type: integer }
+        uploaded_file_id: { type: string }
+        created_at: { type: string, format: date-time }
+        uploaded_at: { type: string, format: date-time }
+    TabPagination:
+      type: object
+      properties:
+        total_count: { type: integer }
+        total_pages: { type: integer }
+        current_page: { type: integer }
+        page_size: { type: integer }
+        has_next_page: { type: boolean }
+        has_previous_page: { type: boolean }
+
+    # ---------- deck ----------
+    Deck:
+      type: object
+      description: A flashcard deck. Response decks may also include `is_saved`.
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        category: { type: string, default: VOCABULARY }
+        level: { type: string, default: N5 }
+        image_ids:
+          type: array
+          items: { type: string }
+        cover_image_id: { type: string }
+        is_active: { type: boolean }
+        inserted_by: { type: integer }
+        card_count: { type: integer }
+        difficulty: { type: integer, default: 1 }
+        tags:
+          type: array
+          items: { type: string }
+        color: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        is_saved: { type: boolean }
+    DeckPaginated:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Deck'
+        pagination:
+          type: object
+          properties:
+            limit: { type: integer }
+            offset: { type: integer }
+            total: { type: integer }
+    FeaturedDeckList:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeaturedDeck'
+    FeaturedDeck:
+      type: object
+      properties:
+        id: { type: integer }
+        deck_id: { type: integer }
+        display_order: { type: integer }
+        added_at: { type: string, format: date-time }
+        deck:
+          $ref: '#/components/schemas/Deck'
+    Flashcard:
+      type: object
+      properties:
+        id: { type: integer }
+        deck_id: { type: integer }
+        japanese: { type: string }
+        furigana: { type: string }
+        romaji: { type: string }
+        meaning: { type: string }
+        example: { type: string }
+        example_meaning: { type: string }
+        type: { type: string, default: VOCABULARY }
+        level: { type: string, default: N5 }
+        writing_system: { type: string, default: KANJI }
+        audio_url: { type: string }
+        image_url: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        notes: { type: string }
+        inserted_by: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ProgressRecord:
+      type: object
+      description: A single flashcard review record (learning_progress table)
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        flashcard_id: { type: integer }
+        proficiency: { type: integer, default: 0 }
+        review_count: { type: integer, default: 0 }
+        correct_count: { type: integer, default: 0 }
+        is_correct: { type: boolean }
+        last_reviewed_at: { type: string, format: date-time }
+        next_review_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    DeckProgress:
+      type: object
+      description: Aggregate progress in a deck (deck_progress table)
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        deck_id: { type: integer }
+        cards_completed: { type: integer, default: 0 }
+        total_cards: { type: integer, default: 0 }
+        average_proficiency: { type: number, format: float, default: 0 }
+        last_accessed_at: { type: string, format: date-time }
+
+    # ---------- post ----------
+    Post:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        content: { type: string }
+        description: { type: string }
+        author: { type: string }
+        author_id: { type: integer }
+        image_url: { type: string }
+        image_ids:
+          type: array
+          items: { type: string }
+        cover_image_id: { type: string }
+        published_at: { type: string, format: date-time }
+        is_featured: { type: boolean }
+        category_id: { type: integer }
+        category_name: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        view_count: { type: integer }
+        approval_status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        approved_by: { type: integer }
+        inserted_by: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time }
+        publication_status:
+          type: string
+          enum: [DRAFT, PUBLISHED]
+        visibility_scope: { type: string }
+        deck_ids:
+          type: array
+          items: { type: integer }
+
+    # ---------- app version ----------
+    AppVersion:
+      type: object
+      properties:
+        id: { type: integer }
+        is_current: { type: boolean }
+        is_force: { type: boolean }
+        title: { type: string }
+        description: { type: string }
+        version: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AppVersionRequest:
+      type: object
+      required: [title, version]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        version: { type: string }
+        is_current: { type: boolean }
+        is_force: { type: boolean }
+
+    # ---------- file ----------
+    UploadedFile:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string, description: Base filename (UUID) stored in DB }
+        user_id: { type: integer }
+        created_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time }
